@@ -71,6 +71,7 @@ Block BlockInputStreamFromRowInputStream::readImpl()
             {
                 ++total_rows;
                 RowReadExtension info;
+                //read()方法是重点, 将从文本中的数据(不在内存中)反序列化到columns(在内存中)中
                 if (!row_input->read(columns, info))
                     break;
 
@@ -152,7 +153,7 @@ Block BlockInputStreamFromRowInputStream::readImpl()
     if (columns.empty() || columns[0]->empty())
         return {};
 
-    return sample.cloneWithColumns(std::move(columns));
+    return sample.cloneWithColumns(std::move(columns));//复制cloums到sample中
 }
 
 

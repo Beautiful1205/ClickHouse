@@ -16,6 +16,9 @@ class Context;
   * Head of inserting data could be stored in INSERT ast directly
   * Remaining (tail) data could be stored in input_buffer_tail_part
   */
+/** 生成包含需要insert数据的输入流
+  * 需要插入的数据的Head可以直接存储在INSERT AST中, 剩余的数据(tail)可以存储在input_buffer_tail_part中
+  */
 class InputStreamFromASTInsertQuery : public IBlockInputStream
 {
 public:

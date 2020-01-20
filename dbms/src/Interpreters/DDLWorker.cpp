@@ -160,7 +160,7 @@ struct DDLLogEntry
 struct DDLTask
 {
     /// Stages of task lifetime correspond ordering of these data fields:
-
+    //分布式查询SQL的各个阶段
     /// Stage 1: parse entry
     String entry_name;
     String entry_path;
@@ -361,7 +361,9 @@ void DDLWorker::processTasks()
     LOG_DEBUG(log, "Processing tasks");
     auto zookeeper = tryGetZooKeeper();
 
+    //找到CK集群的所有节点
     Strings queue_nodes = zookeeper->getChildren(queue_dir, nullptr, queue_updated_event);
+    //过滤一些信息, 并将节点排序
     filterAndSortQueueNodes(queue_nodes);
     if (queue_nodes.empty())
         return;
@@ -372,6 +374,7 @@ void DDLWorker::processTasks()
         ? queue_nodes.begin()
         : std::upper_bound(queue_nodes.begin(), queue_nodes.end(), last_processed_task_name);
 
+    //遍历所有的节点, 在各个节点上分别执行SQL
     for (auto it = begin_node; it != queue_nodes.end(); ++it)
     {
         String entry_name = *it;
@@ -414,6 +417,7 @@ void DDLWorker::processTasks()
         {
             try
             {
+                //处理一个分布式查询任务
                 processTask(task, zookeeper);
             }
             catch (...)
@@ -438,6 +442,7 @@ void DDLWorker::processTasks()
 
 
 /// Parses query and resolves cluster and host in cluster
+//解析查询 并 解析集群和主机
 void DDLWorker::parseQueryAndResolveHost(DDLTask & task)
 {
     {
@@ -450,6 +455,7 @@ void DDLWorker::parseQueryAndResolveHost(DDLTask & task)
     }
 
     // XXX: serious design flaw since `ASTQueryWithOnCluster` is not inherited from `IAST`!
+    //严重的设计缺陷, 因为ASTQueryWithOnCluster没有继承IAST
     if (!task.query || !(task.query_on_cluster = dynamic_cast<ASTQueryWithOnCluster *>(task.query.get())))
         throw Exception("Received unknown DDL query", ErrorCodes::UNKNOWN_TYPE_OF_QUERY);
 
@@ -464,12 +470,14 @@ void DDLWorker::parseQueryAndResolveHost(DDLTask & task)
     /// Try to find host from task host list in cluster
     /// At the first, try find exact match (host name and ports should be literally equal)
     /// If the attempt fails, try find it resolving host name of each instance
+    // 尝试从集群的任务主机列表中查找主机
     const auto & shards = task.cluster->getShardsAddresses();
 
+    //shards是一个二维数组, 包含了数据分片信息和数据备份信息
     bool found_exact_match = false;
-    for (size_t shard_num = 0; shard_num < shards.size(); ++shard_num)
+    for (size_t shard_num = 0; shard_num < shards.size(); ++shard_num)//数据分片信息
     {
-        for (size_t replica_num = 0; replica_num < shards[shard_num].size(); ++replica_num)
+        for (size_t replica_num = 0; replica_num < shards[shard_num].size(); ++replica_num)//每个数据分片的备份信息
         {
             const Cluster::Address & address = shards[shard_num][replica_num];
 
@@ -495,7 +503,7 @@ void DDLWorker::parseQueryAndResolveHost(DDLTask & task)
     LOG_WARNING(log, "Not found the exact match of host " << task.host_id.readableString() << " from task " << task.entry_name
         << " in cluster " << task.cluster_name << " definition. Will try to find it using host name resolving.");
 
-    bool found_via_resolving = false;
+    bool found_via_resolving = false;//是否能通过解析找到
     for (size_t shard_num = 0; shard_num < shards.size(); ++shard_num)
     {
         for (size_t replica_num = 0; replica_num < shards[shard_num].size(); ++replica_num)
@@ -579,7 +587,7 @@ void DDLWorker::attachToThreadGroup()
     }
 }
 
-
+//处理一个分布式查询任务
 void DDLWorker::processTask(DDLTask & task, const ZooKeeperPtr & zookeeper)
 {
     LOG_DEBUG(log, "Processing task " << task.entry_name << " (" << task.entry.query << ")");
@@ -608,10 +616,11 @@ void DDLWorker::processTask(DDLTask & task, const ZooKeeperPtr & zookeeper)
     {
         try
         {
-            parseQueryAndResolveHost(task);
+            parseQueryAndResolveHost(task);//解析查询 并 解析集群和主机
 
+            //解析带有 ON CLUSTER <cluster> 的SQL, 会重写AST
             ASTPtr rewritten_ast = task.query_on_cluster->getRewrittenASTWithoutOnCluster(task.address_in_cluster.default_database);
-            String rewritten_query = queryToString(rewritten_ast);
+            String rewritten_query = queryToString(rewritten_ast);//把AST转换成string (实际上是调用了AST的format方法)
             LOG_DEBUG(log, "Executing query: " << rewritten_query);
 
             if (const auto * ast_alter = rewritten_ast->as<ASTAlterQuery>())
@@ -901,7 +910,7 @@ String DDLWorker::enqueueQuery(DDLLogEntry & entry)
     return node_path;
 }
 
-
+//处理ZK中的分布式查询
 void DDLWorker::runMainThread()
 {
     setThreadName("DDLWorker");
@@ -944,6 +953,7 @@ void DDLWorker::runMainThread()
             attachToThreadGroup();
 
             cleanup_event->set();
+            //处理ZK中的分布式查询
             processTasks();
 
             LOG_DEBUG(log, "Waiting a watch");
@@ -1210,7 +1220,8 @@ private:
     Int64 timeout_seconds = 120;
 };
 
-
+//在集群上执行DDLQuery
+/// Pushes distributed DDL query to the queue 将分布式查询入队
 BlockIO executeDDLQueryOnCluster(const ASTPtr & query_ptr_, const Context & context, NameSet && query_databases)
 {
     /// Remove FORMAT <fmt> and INTO OUTFILE <file> if exists
@@ -1290,6 +1301,7 @@ BlockIO executeDDLQueryOnCluster(const ASTPtr & query_ptr_, const Context & cont
     entry.hosts = std::move(hosts);
     entry.query = queryToString(query_ptr);
     entry.initiator = ddl_worker.getCommonHostID();
+    //将分布式查询入队
     String node_path = ddl_worker.enqueueQuery(entry);
 
     BlockIO io;

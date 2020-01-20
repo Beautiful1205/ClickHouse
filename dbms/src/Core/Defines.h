@@ -37,6 +37,7 @@
 #define DBMS_CONNECTION_POOL_WITH_FAILOVER_DEFAULT_MAX_TRIES 3
 /// each period reduces the error counter by 2 times
 /// too short a period can cause errors to disappear immediately after creation.
+//每隔2 * 300s将错误计数减半. 时间也不能过短, 过短的话会导致错误记录在产生后很快就被取消
 #define DBMS_CONNECTION_POOL_WITH_FAILOVER_DEFAULT_DECREASE_ERROR_PERIOD (2 * DBMS_DEFAULT_SEND_TIMEOUT_SEC)
 
 #define DBMS_MIN_REVISION_WITH_CLIENT_INFO 54032

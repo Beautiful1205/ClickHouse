@@ -11,6 +11,7 @@ class ReadBuffer;
 
 
 /** A stream for inputting data in a binary line-by-line format.
+  * 以二进制逐行格式输入数据的流
   */
 class BinaryRowInputStream : public IRowInputStream
 {

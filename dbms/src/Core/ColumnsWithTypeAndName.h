@@ -5,9 +5,8 @@
 #include <Core/ColumnWithTypeAndName.h>
 
 
-namespace DB
-{
+namespace DB {
 
-using ColumnsWithTypeAndName = std::vector<ColumnWithTypeAndName>;
+    using ColumnsWithTypeAndName = std::vector<ColumnWithTypeAndName>;
 
 }

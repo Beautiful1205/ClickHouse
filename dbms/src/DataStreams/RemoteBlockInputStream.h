@@ -16,6 +16,7 @@ namespace DB
 {
 
 /** This class allows one to launch queries on remote replicas of one shard and get results
+  * 用于在某个分片的远程副本上进行查询并获取结果
   */
 class RemoteBlockInputStream : public IBlockInputStream
 {
@@ -38,6 +39,7 @@ public:
 
     /// Takes a pool and gets one or several connections from it.
     /// If `settings` is nullptr, settings will be taken from context.
+    //创建一个连接池并从中获取一个或多个连接
     RemoteBlockInputStream(
             const ConnectionPoolWithFailoverPtr & pool,
             const String & query_, const Block & header_, const Context & context_, const Settings * settings = nullptr,
@@ -47,6 +49,7 @@ public:
     ~RemoteBlockInputStream() override;
 
     /// Specify how we allocate connections on a shard.
+    //用于指定如何在分片上分配连接
     void setPoolMode(PoolMode pool_mode_) { pool_mode = pool_mode_; }
 
     void setMainTable(QualifiedTableName main_table_) { main_table = std::move(main_table_); }
@@ -136,7 +139,7 @@ private:
     std::atomic<bool> got_unknown_packet_from_replica { false };
 
     PoolMode pool_mode = PoolMode::GET_MANY;
-    std::optional<QualifiedTableName> main_table;
+    std::optional<QualifiedTableName> main_table;//对于没有使用表函数(如remote)的情况, 需要设置main_table
 
     Logger * log = &Logger::get("RemoteBlockInputStream");
 };

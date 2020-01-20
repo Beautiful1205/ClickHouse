@@ -14,6 +14,8 @@ class ExpressionActions;
   * A stream of blocks and an expression, which adds to the block one ColumnUInt8 column containing the filtering conditions, are passed as input.
   * The expression is evaluated and a stream of blocks is returned, which contains only the filtered rows.
   */
+//WHERE, HAVING 关键字的实现
+//根据表达式对数据进行过滤, 只留下符合筛选条件的行
 class FilterBlockInputStream : public IBlockInputStream
 {
 private:

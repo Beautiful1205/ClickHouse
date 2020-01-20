@@ -195,18 +195,21 @@ struct SettingEnum
     void deserialize(ReadBuffer & buf);
 };
 
-
+//负载均衡策略
 enum class LoadBalancing
 {
     /// among replicas with a minimum number of errors selected randomly
+    // 在错误最少的副本中随机选择一个
     RANDOM = 0,
     /// a replica is selected among the replicas with the minimum number of errors
     /// with the minimum number of distinguished characters in the replica name and local hostname
+    // 在错误最少, 副本名和本地主机名的可分辨字符数最少的副本中选择一个
     NEAREST_HOSTNAME,
     /// replicas are walked through strictly in order; the number of errors does not matter
+    // 副本严格按照顺序进行遍历, 错误的数量无关紧要
     IN_ORDER,
-    /// if first replica one has higher number of errors,
-    ///   pick a random one from replicas with minimum number of errors
+    /// if first replica one has higher number of errors, pick a random one from replicas with minimum number of errors
+    // 先看第一个副本, 如果错误数较高, 就从剩余错误数最小的副本中随机选择一个
     FIRST_OR_RANDOM,
 };
 using SettingLoadBalancing = SettingEnum<LoadBalancing>;

@@ -11,12 +11,22 @@ namespace DB
   * Initialized by several other IConnectionPools.
   * When a connection is received, it tries to create or select a live connection from a pool,
   *  fetch them in some order, using no more than the specified number of attempts.
+  *
   * Pools with fewer errors are preferred;
   *  pools with the same number of errors are tried in random order.
   *
   * Note: if one of the nested pools is blocked due to overflow, then this pool will also be blocked.
   */
 
+/*
+ * 具有容错功能的连接池
+ * 由Iconnectionpool初始化而来
+ * 当收到到连接时, 它会尝试从连接池中创建或选择活动连接, 并按一定顺序获取它们, 尝试次数不超过指定的次数
+ *
+ * 首选错误较少的连接池, 错误数相同的连接池按随机顺序尝试
+ *
+ * 注意: 如果其中一个嵌套池由于溢出而被阻塞，则此连接池也将被阻塞。
+ */
 /// Specifies how many connections to return from ConnectionPoolWithFailover::getMany() method.
 enum class PoolMode
 {
@@ -28,6 +38,7 @@ enum class PoolMode
     GET_ALL
 };
 
+// 继承了IConnectionPool 和 PoolWithFailoverBase
 class ConnectionPoolWithFailover : public IConnectionPool, private PoolWithFailoverBase<IConnectionPool>
 {
 public:

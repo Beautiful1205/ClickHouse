@@ -5,102 +5,108 @@
 #include <Client/ConnectionPoolWithFailover.h>
 #include <mutex>
 
-namespace DB
-{
+namespace DB {
 
 
-/** To retrieve data directly from multiple replicas (connections) from one shard
-  * within a single thread. As a degenerate case, it can also work with one connection.
+/** To retrieve data directly from multiple replicas (connections) from one shard within a single thread.
+  * As a degenerate case, it can also work with one connection.
   * It is assumed that all functions except sendCancel are always executed in one thread.
   *
   * The interface is almost the same as Connection.
   */
-class MultiplexedConnections final : private boost::noncopyable
-{
-public:
-    /// Accepts ready connection.
-    MultiplexedConnections(Connection & connection, const Settings & settings_, const ThrottlerPtr & throttler_);
+/*
+ * 使用单线程从某一个分片的多个副本(多个连接)中获取数据
+ * 如果没有多个连接, 只有一个连接, 这样也是可以的
+ *
+ /// 前提是: 除了sendCancel之外的所有函数都在一个线程中执行
+ *
+ * 这个 多路连接 的功能和Connection几乎一样
+ */
 
-    /// Accepts a vector of connections to replicas of one shard already taken from pool.
-    MultiplexedConnections(
-        std::vector<IConnectionPool::Entry> && connections,
-        const Settings & settings_, const ThrottlerPtr & throttler_);
+    class MultiplexedConnections final : private boost::noncopyable {
+    public:
+        /// Accepts ready connection.
+        MultiplexedConnections(Connection &connection, const Settings &settings_, const ThrottlerPtr &throttler_);
 
-    /// Send all content of external tables to replicas.
-    void sendExternalTablesData(std::vector<ExternalTablesData> & data);
+        /// Accepts a vector of connections to replicas of one shard already taken from pool.
+        MultiplexedConnections(
+                std::vector<IConnectionPool::Entry> &&connections,
+                const Settings &settings_, const ThrottlerPtr &throttler_);
 
-    /// Send request to replicas.
-    void sendQuery(
-        const String & query,
-        const String & query_id = "",
-        UInt64 stage = QueryProcessingStage::Complete,
-        const ClientInfo * client_info = nullptr,
-        bool with_pending_data = false);
+        /// Send all content of external tables to replicas.
+        void sendExternalTablesData(std::vector<ExternalTablesData> &data);
 
-    /// Get packet from any replica.
-    Connection::Packet receivePacket();
+        /// Send request to replicas.
+        void sendQuery(
+                const String &query,
+                const String &query_id = "",
+                UInt64 stage = QueryProcessingStage::Complete,
+                const ClientInfo *client_info = nullptr,
+                bool with_pending_data = false);
 
-    /// Break all active connections.
-    void disconnect();
+        /// Get packet from any replica.
+        Connection::Packet receivePacket();
 
-    /// Send a request to the replica to cancel the request
-    void sendCancel();
+        /// Break all active connections.
+        void disconnect();
 
-    /** On each replica, read and skip all packets to EndOfStream or Exception.
-      * Returns EndOfStream if no exception has been received. Otherwise
-      * returns the last received packet of type Exception.
-      */
-    Connection::Packet drain();
+        /// Send a request to the replica to cancel the request
+        void sendCancel();
 
-    /// Get the replica addresses as a string.
-    std::string dumpAddresses() const;
+        /** On each replica, read and skip all packets to EndOfStream or Exception.
+          * Returns EndOfStream if no exception has been received. Otherwise
+          * returns the last received packet of type Exception.
+          */
+        Connection::Packet drain();
 
-    /// Returns the number of replicas.
-    /// Without locking, because sendCancel() does not change this number.
-    size_t size() const { return replica_states.size(); }
+        /// Get the replica addresses as a string.
+        std::string dumpAddresses() const;
 
-    /// Check if there are any valid replicas.
-    /// Without locking, because sendCancel() does not change the state of the replicas.
-    bool hasActiveConnections() const { return active_connection_count > 0; }
+        /// Returns the number of replicas.
+        /// Without locking, because sendCancel() does not change this number.
+        size_t size() const { return replica_states.size(); }
 
-private:
-    /// Internal version of `receivePacket` function without locking.
-    Connection::Packet receivePacketUnlocked();
+        /// Check if there are any valid replicas.
+        /// Without locking, because sendCancel() does not change the state of the replicas.
+        bool hasActiveConnections() const { return active_connection_count > 0; }
 
-    /// Internal version of `dumpAddresses` function without locking.
-    std::string dumpAddressesUnlocked() const;
+    private:
+        /// Internal version of `receivePacket` function without locking.
+        Connection::Packet receivePacketUnlocked();
 
-    /// Description of a single replica.
-    struct ReplicaState
-    {
-        Connection * connection = nullptr;
-        ConnectionPool::Entry pool_entry;
+        /// Internal version of `dumpAddresses` function without locking.
+        std::string dumpAddressesUnlocked() const;
+
+        /// Description of a single replica.
+        struct ReplicaState {
+            Connection *connection = nullptr;
+            ConnectionPool::Entry pool_entry;
+        };
+
+        /// Get a replica where you can read the data.
+        ReplicaState &getReplicaForReading();
+
+        /// Mark the replica as invalid.
+        void invalidateReplica(ReplicaState &replica_state);
+
+    private:
+        const Settings &settings;
+
+        /// The current number of valid connections to the replicas of this shard.
+        size_t active_connection_count = 0;
+
+        std::vector<ReplicaState> replica_states;
+        std::unordered_map<int, size_t> fd_to_replica_state_idx;
+
+        /// Connection that received last block.
+        Connection *current_connection = nullptr;
+
+        bool sent_query = false;
+        bool cancelled = false;
+
+        /// A mutex for the sendCancel function to execute safely
+        /// in separate thread.
+        mutable std::mutex cancel_mutex;
     };
-
-    /// Get a replica where you can read the data.
-    ReplicaState & getReplicaForReading();
-
-    /// Mark the replica as invalid.
-    void invalidateReplica(ReplicaState & replica_state);
-
-private:
-    const Settings & settings;
-
-    /// The current number of valid connections to the replicas of this shard.
-    size_t active_connection_count = 0;
-
-    std::vector<ReplicaState> replica_states;
-    std::unordered_map<int, size_t> fd_to_replica_state_idx;
-
-    /// Connection that received last block.
-    Connection * current_connection = nullptr;
-
-    bool sent_query = false;
-    bool cancelled = false;
-
-    /// A mutex for the sendCancel function to execute safely
-    /// in separate thread.
-    mutable std::mutex cancel_mutex;
-};
 
 }

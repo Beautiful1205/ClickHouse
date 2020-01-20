@@ -32,6 +32,8 @@ namespace ErrorCodes
 /// Motivation:
 ///  * Prepare something heavy once before main execution loop instead of doing it for each block.
 ///  * Provide const interface for IFunctionBase (later).
+//最简单的可执行对象
+//其目的是: 1- ; 2-
 class IPreparedFunction
 {
 public:
@@ -40,6 +42,7 @@ public:
     /// Get the main function name.
     virtual String getName() const = 0;
 
+    //具体实现见IPreparedFunction的实现类
     virtual void execute(Block & block, const ColumnNumbers & arguments, size_t result, size_t input_rows_count, bool dry_run) = 0;
 };
 
@@ -85,6 +88,10 @@ protected:
       * Otherwise, convert all low cardinality columns to ordinary columns.
       * Returns ColumnLowCardinality if at least one argument is ColumnLowCardinality.
       */
+      //（基数是数据列所包含的不同值的数量。比如性别列，该列只有男女之分，所以这一列基数是2。主键列的基数等于表的总行数。基数的高低影响列的数据分布。基数小, 数据分布不均匀, 索引的作用不大）
+    // 如果函数参数有一个低基数列, 而所有其他参数都是常量, 则在嵌套列上调用函数.
+    // 否则, 将所有低基数列转换为普通列.
+    // 如果至少有一个参数是ColumnLowCardinality, 则返回ColumnLowCardinality
     virtual bool useDefaultImplementationForLowCardinalityColumns() const { return true; }
 
     /** Some arguments could remain constant during this implementation.

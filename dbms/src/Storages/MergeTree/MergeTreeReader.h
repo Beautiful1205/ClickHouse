@@ -13,6 +13,9 @@ class IDataType;
 /// Reads the data between pairs of marks in the same part. When reading consecutive ranges, avoids unnecessary seeks.
 /// When ranges are almost consecutive, seeks are fast because they are performed inside the buffer.
 /// Avoids loading the marks file if it is not needed (e.g. when reading the whole part).
+//读取标记对之间在同一个part中的数据. 读取连续范围时, 避免不必要的查找
+//当范围几乎是连续的时, 搜索速度很快, 因为它们是在缓冲区内执行的
+//如果不需要(例如读取整个part时), 不会加载标记文件
 class MergeTreeReader : private boost::noncopyable
 {
 public:
@@ -62,7 +65,7 @@ private:
 
     /// avg_value_size_hints are used to reduce the number of reallocations when creating columns of variable size.
     ValueSizeMap avg_value_size_hints;
-    /// Stores states for IDataType::deserializeBinaryBulk
+    /// Stores states for IDataType::deserializeBinaryBulk. 存储IDataType::deserializeBinaryBulk的中间状态
     DeserializeBinaryBulkStateMap deserialize_binary_bulk_state_map;
     /// Path to the directory containing the part
     String path;

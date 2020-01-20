@@ -20,7 +20,7 @@ namespace ProfileEvents
 namespace DB
 {
 
-
+//内存池
 /** Memory pool to append something. For example, short strings.
   * Usage scenario:
   * - put lot of strings inside pool, keep their addresses;

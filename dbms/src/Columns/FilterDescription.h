@@ -10,7 +10,8 @@ namespace DB
 
 
 /// Analyze if the column for filter is constant thus filter is always false or always true.
-struct ConstantFilterDescription
+// 分析过滤的列是否为常量列, 如果是常量列, 则过滤结果始终为false或始终为true。
+    struct ConstantFilterDescription
 {
     bool always_false = false;
     bool always_true = false;

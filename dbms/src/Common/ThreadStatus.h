@@ -39,9 +39,14 @@ using InternalTextLogsQueueWeakPtr = std::weak_ptr<InternalTextLogsQueue>;
   *
   * ProfileEvents (counters) from a thread are propagated to thread group.
   *
-  * Create via CurrentThread::initializeQuery (for queries) or directly (for various background tasks).
-  * Use via CurrentThread::getGroup.
+  * Create via CurrentThread::initializeQuery (for queries)
+      or directly (for various background tasks) use via CurrentThread::getGroup.
   */
+// 线程组是专用于单个任务的线程的集合(单个任务包括执行查询或后台执行merge)
+// (一个线程组中)每个线程的ProfileEvents都会被传播到当前线程组的其他线程中
+
+// 对于查询使用CurrentThread::initializeQuery方法创建;
+// 对于其他后台任务, 可以使用CurrentThread::getGroup直接创建
 class ThreadGroupStatus
 {
 public:

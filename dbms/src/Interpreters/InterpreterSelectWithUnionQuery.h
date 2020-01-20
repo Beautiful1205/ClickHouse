@@ -6,48 +6,46 @@
 #include <Interpreters/SelectQueryOptions.h>
 
 
-namespace DB
-{
+namespace DB {
 
-class InterpreterSelectQuery;
+    class InterpreterSelectQuery;
 
 
 /** Interprets one or multiple SELECT queries inside UNION ALL chain.
   */
-class InterpreterSelectWithUnionQuery : public IInterpreter
-{
-public:
-    InterpreterSelectWithUnionQuery(
-        const ASTPtr & query_ptr_,
-        const Context & context_,
-        const SelectQueryOptions &,
-        const Names & required_result_column_names = {});
+    class InterpreterSelectWithUnionQuery : public IInterpreter {
+    public:
+        InterpreterSelectWithUnionQuery(
+                const ASTPtr &query_ptr_,
+                const Context &context_,
+                const SelectQueryOptions &,
+                const Names &required_result_column_names = {});
 
-    ~InterpreterSelectWithUnionQuery() override;
+        ~InterpreterSelectWithUnionQuery() override;
 
-    BlockIO execute() override;
+        BlockIO execute() override;
 
-    /// Execute the query without union of streams.
-    BlockInputStreams executeWithMultipleStreams();
+        /// Execute the query without union of streams.
+        BlockInputStreams executeWithMultipleStreams();
 
-    Block getSampleBlock();
+        Block getSampleBlock();
 
-    static Block getSampleBlock(
-        const ASTPtr & query_ptr_,
-        const Context & context_);
+        static Block getSampleBlock(
+                const ASTPtr &query_ptr_,
+                const Context &context_);
 
-    void ignoreWithTotals();
+        void ignoreWithTotals();
 
-    ASTPtr getQuery() const { return query_ptr; }
+        ASTPtr getQuery() const { return query_ptr; }
 
-private:
-    const SelectQueryOptions options;
-    ASTPtr query_ptr;
-    Context context;
+    private:
+        const SelectQueryOptions options;
+        ASTPtr query_ptr;
+        Context context;
 
-    std::vector<std::unique_ptr<InterpreterSelectQuery>> nested_interpreters;
+        std::vector<std::unique_ptr<InterpreterSelectQuery>> nested_interpreters;
 
-    Block result_header;
-};
+        Block result_header;
+    };
 
 }

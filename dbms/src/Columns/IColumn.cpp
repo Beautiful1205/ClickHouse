@@ -3,23 +3,20 @@
 #include <Columns/IColumn.h>
 
 
-namespace DB
-{
+namespace DB {
 
-String IColumn::dumpStructure() const
-{
-    WriteBufferFromOwnString res;
-    res << getFamilyName() << "(size = " << size();
+    String IColumn::dumpStructure() const {
+        WriteBufferFromOwnString res;
+        res << getFamilyName() << "(size = " << size();
 
-    ColumnCallback callback = [&](ColumnPtr & subcolumn)
-    {
-        res << ", " << subcolumn->dumpStructure();
-    };
+        ColumnCallback callback = [&](ColumnPtr &subcolumn) {
+            res << ", " << subcolumn->dumpStructure();
+        };
 
-    const_cast<IColumn*>(this)->forEachSubcolumn(callback);
+        const_cast<IColumn *>(this)->forEachSubcolumn(callback);
 
-    res << ")";
-    return res.str();
-}
+        res << ")";
+        return res.str();
+    }
 
 }

@@ -7,13 +7,11 @@
 #include <Common/ThreadPool.h>
 
 
-namespace CurrentMetrics
-{
+namespace CurrentMetrics {
     extern const Metric QueryThread;
 }
 
-namespace DB
-{
+namespace DB {
 
 /** Executes another BlockInputStream in a separate thread.
   * This serves two purposes:
@@ -23,79 +21,82 @@ namespace DB
   *     has come over the network with a request to interrupt the execution of the query.
   *    It also allows you to execute multiple queries at the same time.
   */
-class AsynchronousBlockInputStream : public IBlockInputStream
-{
-public:
-    AsynchronousBlockInputStream(const BlockInputStreamPtr & in)
-    {
-        children.push_back(in);
-    }
 
-    String getName() const override { return "Asynchronous"; }
-
-    void readPrefix() override
-    {
-        /// Do not call `readPrefix` on the child, so that the corresponding actions are performed in a separate thread.
-        if (!started)
-        {
-            next();
-            started = true;
-        }
-    }
-
-    void readSuffix() override
-    {
-        if (started)
-        {
-            pool.wait();
-            if (exception)
-                std::rethrow_exception(exception);
-            children.back()->readSuffix();
-            started = false;
-        }
-    }
-
-
-    /** Wait for the data to be ready no more than the specified timeout. Start receiving data if necessary.
-      * If the function returned true - the data is ready and you can do `read()`; You can not call the function just at the same moment again.
-      */
-    bool poll(UInt64 milliseconds)
-    {
-        if (!started)
-        {
-            next();
-            started = true;
+/** 创建一个异步的BlockInputStream.
+  * 在另外一个单独的线程中执行BlockInputStream, 有两个目的:
+  * 1-允许查询执行管道的不同阶段能够并行工作;
+  * 2-可以不用一直等待, 直到数据准备就绪. 可以定期检查数据的准备状态而不必一直阻塞.
+  *
+  * 另起一个线程来执行BlockInputStream, 这样一来, 服务在等待周期内还可以检查是否有其他数据包被发送过来取消当前查询的执行.
+  * 这样做也便于服务端同时执行多个查询.
+  */
+    class AsynchronousBlockInputStream : public IBlockInputStream {
+    public:
+        AsynchronousBlockInputStream(const BlockInputStreamPtr &in) {
+            children.push_back(in);
         }
 
-        return ready.tryWait(milliseconds);
-    }
+        String getName() const override { return "Asynchronous"; }
+
+        void readPrefix() override {
+            /// Do not call `readPrefix` on the child, so that the corresponding actions are performed in a separate thread.
+            //不要对子类流调用readPrefix()方法
+            if (!started) {
+                next();
+                started = true;
+            }
+        }
+
+        void readSuffix() override {
+            if (started) {
+                pool.wait();
+                if (exception)
+                    std::rethrow_exception(exception);
+                children.back()->readSuffix();
+                started = false;
+            }
+        }
 
 
-    Block getHeader() const override { return children.at(0)->getHeader(); }
+        /** Wait for the data to be ready no more than the specified timeout.
+          * Start receiving data if necessary.
+          * If the function returned true - the data is ready and you can do `read()`;
+          * You can not call the function just at the same moment again.
+          */
+        bool poll(UInt64 milliseconds) {
+            if (!started) {
+                next();
+                started = true;
+            }
+
+            return ready.tryWait(milliseconds);
+        }
 
 
-    ~AsynchronousBlockInputStream() override
-    {
-        if (started)
-            pool.wait();
-    }
+        Block getHeader() const override { return children.at(0)->getHeader(); }
 
-protected:
-    ThreadPool pool{1};
-    Poco::Event ready;
-    bool started = false;
-    bool first = true;
 
-    Block block;
-    std::exception_ptr exception;
+        ~AsynchronousBlockInputStream() override {
+            if (started)
+                pool.wait();
+        }
 
-    Block readImpl() override;
+    protected:
+        ThreadPool pool{1};// 声明线程池
+        Poco::Event ready;
+        bool started = false;
+        bool first = true;
 
-    void next();
+        Block block;
+        std::exception_ptr exception;
 
-    /// Calculations that can be performed in a separate thread
-    void calculate();
-};
+        Block readImpl() override;
+
+        void next();
+
+        /// Calculations that can be performed in a separate thread
+        void calculate();
+    };
 
 }
 

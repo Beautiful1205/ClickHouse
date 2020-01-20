@@ -3,7 +3,7 @@
 
 namespace DB
 {
-
+//    展开常量列
 Block materializeBlock(const Block & block)
 {
     if (!block)

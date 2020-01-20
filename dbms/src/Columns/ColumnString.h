@@ -28,10 +28,13 @@ private:
     friend class COWHelper<IColumn, ColumnString>;
 
     /// Maps i'th position to offset to i+1'th element. Last offset maps to the end of all chars (is the size of all chars).
+    // 将第i个位置映射到第i+1个元素. 最终偏移量映射到所有字符的末尾(最终偏移量就是所有字符大小的值)
     Offsets offsets;
 
     /// Bytes of strings, placed contiguously.
     /// For convenience, every string ends with terminating zero byte. Note that strings could contain zero bytes in the middle.
+    // 字符串中的每个字节, 这些字节是连续放置的.
+    // 为了方便起见, 每个字符串都以\0结尾. 注意: 字符串中间也可能包含\0
     Chars chars;
 
     size_t ALWAYS_INLINE offsetAt(ssize_t i) const { return offsets[i - 1]; }

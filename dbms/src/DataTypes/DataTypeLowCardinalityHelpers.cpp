@@ -80,7 +80,7 @@ ColumnPtr recursiveRemoveLowCardinality(const ColumnPtr & column)
 
     return column;
 }
-
+//递归低基数转换
 ColumnPtr recursiveLowCardinalityConversion(const ColumnPtr & column, const DataTypePtr & from_type, const DataTypePtr & to_type)
 {
     if (!column)
@@ -111,7 +111,7 @@ ColumnPtr recursiveLowCardinalityConversion(const ColumnPtr & column, const Data
         {
             auto col = low_cardinality_type->createColumn();
             static_cast<ColumnLowCardinality &>(*col).insertRangeFromFullColumn(*column, 0, column->size());
-            return std::move(col);
+            return col;
         }
     }
 

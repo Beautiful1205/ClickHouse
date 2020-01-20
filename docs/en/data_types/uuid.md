@@ -1,6 +1,7 @@
 # UUID {#uuid-data-type}
 
-A universally unique identifier (UUID) is a 16-byte number used to identify records. For detailed information about the UUID, see [Wikipedia](https://en.wikipedia.org/wiki/Universally_unique_identifier).
+A universally unique identifier (UUID) is a 16-byte number used to identify records.
+For detailed information about the UUID, see [Wikipedia](https://en.wikipedia.org/wiki/Universally_unique_identifier).
 
 The example of UUID type value is represented below: 
 

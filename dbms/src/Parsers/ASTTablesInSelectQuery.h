@@ -149,7 +149,7 @@ struct ASTTablesInSelectQueryElement : public IAST
     using IAST::IAST;
     String getID(char) const override { return "TablesInSelectQueryElement"; }
     ASTPtr clone() const override;
-    void formatImpl(const FormatSettings & settings, FormatState & state, FormatStateStacked frame) const override;
+    void formatImpl(const FormatSettings & settings, FormatState & state, FormatStateStacked frame) const override;//用于客户端格式化输出SQL的方法
 };
 
 

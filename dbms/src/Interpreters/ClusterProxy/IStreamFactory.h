@@ -15,8 +15,7 @@ class Throttler;
 namespace ClusterProxy
 {
 
-/// Base class for the implementation of the details of distributed query
-/// execution that are specific to the query type.
+/// Base class for the implementation of the details of distributed query execution that are specific to the query type.
 class IStreamFactory
 {
 public:

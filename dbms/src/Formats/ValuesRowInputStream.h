@@ -13,6 +13,7 @@ class ReadBuffer;
 
 
 /** Stream to read data in VALUES format (as in INSERT query).
+  * 以 VALUES 格式读取数据的流 (用于insert语句)
   */
 class ValuesRowInputStream : public IRowInputStream
 {

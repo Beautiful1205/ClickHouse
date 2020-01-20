@@ -58,7 +58,7 @@ private:
     Logger * log = nullptr;
 
     /// Protects the queue, future_parts and other queue state variables.
-    mutable std::mutex state_mutex;
+    mutable std::mutex state_mutex;//该类表示普通的互斥锁, 不能递归使用
 
     /// A set of parts that should be on this replica according to the queue entries that have been done
     /// up to this point. The invariant holds: `virtual_parts` = `current_parts` + `queue`.
@@ -94,6 +94,8 @@ private:
     /// mutations_by_partition is an index partition ID -> block ID -> mutation into this set.
     /// Note that mutations are updated in such a way that they are always more recent than
     /// log_pointer (see pullLogsToQueue()).
+    //从ZK那里获取的一系列的数据的变化
+    //mutations_by_partition 这个无序map中
 
     struct MutationStatus
     {

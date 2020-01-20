@@ -1,6 +1,7 @@
 ## IPv4
 
-`IPv4` is a domain based on `UInt32` type and serves as typed replacement for storing IPv4 values. It provides compact storage with human-friendly input-output format, and column type information on inspection.
+`IPv4` is a domain based on `UInt32` type and serves as typed replacement for storing IPv4 values.
+It provides compact storage with human-friendly input-output format, and column type information on inspection.
 
 ### Basic Usage
 

@@ -14,7 +14,7 @@ void HexWriteBuffer::nextImpl()
 
     for (Position p = working_buffer.begin(); p != pos; ++p)
     {
-        UInt8 byte = *p;
+        UInt8 byte = *p;//一个字节一个字节的写, 把每个字节转成16进制数
         out.write(hexDigitUppercase(byte / 16));
         out.write(hexDigitUppercase(byte % 16));
     }

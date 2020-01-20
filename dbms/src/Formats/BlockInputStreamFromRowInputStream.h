@@ -14,6 +14,12 @@ namespace DB
   *
   * Also controls over parsing errors and prints diagnostic information about them.
   */
+/** 使面向块的流位于面向行的流的顶部.
+  *
+  * 用于从文本格式的文件中读取数据.
+  *
+  * 还控制解析错误并打印有关错误的诊断信息.
+  */
 class BlockInputStreamFromRowInputStream : public IBlockInputStream
 {
 public:

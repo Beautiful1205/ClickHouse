@@ -332,7 +332,7 @@ void ExpressionAction::prepare(Block & sample_block, const Settings & settings)
 
 void ExpressionAction::execute(Block & block, bool dry_run) const
 {
-    size_t input_rows_count = block.rows();
+    size_t input_rows_count = block.rows();//当前block中数据的行数
 
     if (type == REMOVE_COLUMN || type == COPY_COLUMN)
         if (!block.has(source_name))
@@ -354,7 +354,7 @@ void ExpressionAction::execute(Block & block, bool dry_run) const
                 arguments[i] = block.getPositionByName(argument_names[i]);
             }
 
-            size_t num_columns_without_result = block.columns();
+            size_t num_columns_without_result = block.columns();//当前block中数据的列数
             block.insert({ nullptr, result_type, result_name});
 
             ProfileEvents::increment(ProfileEvents::FunctionExecute);
@@ -600,6 +600,7 @@ std::string ExpressionAction::toString() const
     return ss.str();
 }
 
+//检查是否超出了中间结果列的最大行数限制, 是否超出了中间结果非常量列的最大行数限制
 void ExpressionActions::checkLimits(Block & block) const
 {
     if (settings.max_temporary_columns && block.columns() > settings.max_temporary_columns)

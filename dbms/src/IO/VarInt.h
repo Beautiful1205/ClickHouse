@@ -128,18 +128,18 @@ inline void readVarUIntImpl(UInt64 & x, ReadBuffer & istr)
             if (istr.eof())
                 throwReadAfterEOF();
 
-        UInt64 byte = *istr.position();
+        UInt64 byte = *istr.position();//UInt64是8字节(64位)
         ++istr.position();
-        x |= (byte & 0x7F) << (7 * i);
+        x |= (byte & 0x7F) << (7 * i);//先计算括号里面的, 再计算<<, 最后计算|=
 
-        if (!(byte & 0x80))
+        if (!(byte & 0x80))//每个字节的最高位是标志位, 表示是否还需要继续循环读取数据. 否则数据读取结束, 跳出循环.
             return;
     }
 }
 
 inline void readVarUInt(UInt64 & x, ReadBuffer & istr)
 {
-    if (istr.buffer().end() - istr.position() >= 9)
+    if (istr.buffer().end() - istr.position() >= 9)//内存缓冲区中剩余的未读取的内容大于9个字节
         return readVarUIntImpl<true>(x, istr);
     return readVarUIntImpl<false>(x, istr);
 }
@@ -179,13 +179,19 @@ inline const char * readVarUInt(UInt64 & x, const char * istr, size_t size)
     return istr;
 }
 
-
+/**举例:
+   "54420"这个数字, 二进制形式是1101 0100 1001 0100,
+   x = 1101 0100 1001 0100, i = 0, byte = 1001 0100 = \x94
+   x = 0000 0001 1010 1001, i = 1, byte = 1010 1001 = \xa9
+   x = 0000 0000 0000 0011, i = 2, byte = 0000 0011 = \x03
+   所以对于数字"54420", 会转化成 \x94\xa9\x03 进行传输
+*/
 inline void writeVarUInt(UInt64 x, WriteBuffer & ostr)
 {
     for (size_t i = 0; i < 9; ++i)
     {
         uint8_t byte = x & 0x7F;
-        if (x > 0x7F)
+        if (x > 0x7F)//x>0x7F 表示x的位数多于7位, 需要标记一下(将第8位置为1), 然后再进行后面的无符号右移7位
             byte |= 0x80;
 
         ostr.nextIfAtEnd();

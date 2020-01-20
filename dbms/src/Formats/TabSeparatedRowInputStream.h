@@ -15,6 +15,7 @@ class ReadBuffer;
 
 
 /** A stream to input data in tsv format.
+  * 以tsv格式输入数据的流
   */
 class TabSeparatedRowInputStream : public IRowInputStream
 {

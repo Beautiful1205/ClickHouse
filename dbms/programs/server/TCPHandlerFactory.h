@@ -7,31 +7,26 @@
 
 namespace Poco { class Logger; }
 
-namespace DB
-{
+namespace DB {
 
-class TCPHandlerFactory : public Poco::Net::TCPServerConnectionFactory
-{
-private:
-    IServer & server;
-    Poco::Logger * log;
+    class TCPHandlerFactory : public Poco::Net::TCPServerConnectionFactory {
+    private:
+        IServer &server;
+        Poco::Logger *log;
 
-public:
-    explicit TCPHandlerFactory(IServer & server_, bool secure_ = false)
-        : server(server_)
-        , log(&Logger::get(std::string("TCP") + (secure_ ? "S" : "") + "HandlerFactory"))
-    {
-    }
+    public:
+        explicit TCPHandlerFactory(IServer &server_, bool secure_ = false)
+                : server(server_), log(&Logger::get(std::string("TCP") + (secure_ ? "S" : "") + "HandlerFactory")) {
+        }
 
-    Poco::Net::TCPServerConnection * createConnection(const Poco::Net::StreamSocket & socket) override
-    {
-        LOG_TRACE(log,
-            "TCP Request. "
-                << "Address: "
-                << socket.peerAddress().toString());
+        Poco::Net::TCPServerConnection *createConnection(const Poco::Net::StreamSocket &socket) override {
+            LOG_TRACE(log,
+                      "TCP Request. "
+                              << "Address: "
+                              << socket.peerAddress().toString());
 
-        return new TCPHandler(server, socket);
-    }
-};
+            return new TCPHandler(server, socket);
+        }
+    };
 
 }

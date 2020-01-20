@@ -4,10 +4,9 @@
 #include <DataTypes/IDataType.h>
 
 
-namespace DB
-{
+namespace DB {
 
-class WriteBuffer;
+    class WriteBuffer;
 
 
 /** Column data along with its data type and name.
@@ -15,25 +14,27 @@ class WriteBuffer;
   * Name could be either name from a table or some temporary generated name during expression evaluation.
   */
 
-struct ColumnWithTypeAndName
-{
-    ColumnPtr column;
-    DataTypePtr type;
-    String name;
+    struct ColumnWithTypeAndName {
+        ColumnPtr column;
+        DataTypePtr type;
+        String name;
 
-    ColumnWithTypeAndName() {}
-    ColumnWithTypeAndName(const ColumnPtr & column_, const DataTypePtr & type_, const String & name_)
-        : column(column_), type(type_), name(name_) {}
+        ColumnWithTypeAndName() {}
 
-    /// Uses type->createColumn() to create column
-    ColumnWithTypeAndName(const DataTypePtr & type_, const String & name_)
-        : column(type_->createColumn()), type(type_), name(name_) {}
+        ColumnWithTypeAndName(const ColumnPtr &column_, const DataTypePtr &type_, const String &name_)
+                : column(column_), type(type_), name(name_) {}
 
-    ColumnWithTypeAndName cloneEmpty() const;
-    bool operator==(const ColumnWithTypeAndName & other) const;
+        /// Uses type->createColumn() to create column
+        ColumnWithTypeAndName(const DataTypePtr &type_, const String &name_)
+                : column(type_->createColumn()), type(type_), name(name_) {}
 
-    void dumpStructure(WriteBuffer & out) const;
-    String dumpStructure() const;
-};
+        ColumnWithTypeAndName cloneEmpty() const;
+
+        bool operator==(const ColumnWithTypeAndName &other) const;
+
+        void dumpStructure(WriteBuffer &out) const;
+
+        String dumpStructure() const;
+    };
 
 }

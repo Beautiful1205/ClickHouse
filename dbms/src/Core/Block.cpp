@@ -159,7 +159,7 @@ ColumnWithTypeAndName & Block::safeGetByPosition(size_t position)
             + toString(data.size() - 1)
             + ", there are columns: " + dumpNames(), ErrorCodes::POSITION_OUT_OF_BOUND);
 
-    return data[position];
+    return data[position];//data是一个数组, 每个位置保存着(具体的数据+数据类型+列名)
 }
 
 
@@ -208,12 +208,13 @@ bool Block::has(const std::string & name) const
 
 size_t Block::getPositionByName(const std::string & name) const
 {
+    //index_by_name是map类型, 根据map的key调用find()方法返回的是类似Java中的MapEntry
     auto it = index_by_name.find(name);
     if (index_by_name.end() == it)
         throw Exception("Not found column " + name + " in block. There are only columns: " + dumpNames()
             , ErrorCodes::NOT_FOUND_COLUMN_IN_BLOCK);
 
-    return it->second;
+    return it->second;//MapEntry是类似pair类型的, 所以it->second返回map中的value
 }
 
 

@@ -318,20 +318,21 @@ User::User(const String & name_, const String & config_elem, const Poco::Util::A
 
     /// Read properties per "database.table"
     /// Only tables are expected to have properties, so that all the keys inside "database" are table names.
+    //读取库名.表名的属性
     const auto config_databases = config_elem + ".databases";
     if (config.has(config_databases))
     {
         Poco::Util::AbstractConfiguration::Keys database_names;
         config.keys(config_databases, database_names);
 
-        /// Read tables within databases
+        /// Read tables within databases  遍历数据库
         for (const auto & database : database_names)
         {
             const auto config_database = config_databases + "." + database;
             Poco::Util::AbstractConfiguration::Keys table_names;
             config.keys(config_database, table_names);
 
-            /// Read table properties
+            /// Read table properties  遍历数据表
             for (const auto & table : table_names)
             {
                 const auto config_filter = config_database + "." + table + ".filter";

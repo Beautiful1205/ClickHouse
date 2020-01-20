@@ -50,7 +50,7 @@ BlockInputStreams executeQuery(
     if (auto process_list_element = context.getProcessListElement())
         user_level_throttler = process_list_element->getUserNetworkThrottler();
 
-    /// Network bandwidth limit, if needed.
+    /// Network bandwidth limit, if needed. 网络带宽限制
     ThrottlerPtr throttler;
     if (settings.max_network_bandwidth || settings.max_network_bytes)
     {
@@ -63,6 +63,7 @@ BlockInputStreams executeQuery(
     else
         throttler = user_level_throttler;
 
+    //遍历数据的所有的分片，针对每个分片
     for (const auto & shard_info : cluster->getShardsInfo())
         stream_factory.createForShard(shard_info, query, query_ast, new_context, throttler, res);
 

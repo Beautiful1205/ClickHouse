@@ -4043,18 +4043,17 @@ void StorageReplicatedMergeTree::getQueue(LogEntriesData & res, String & replica
 
 time_t StorageReplicatedMergeTree::getAbsoluteDelay() const
 {
-    time_t min_unprocessed_insert_time = 0;
-    time_t max_processed_insert_time = 0;
+    time_t min_unprocessed_insert_time = 0;//队列中日志的最小的插入时间
+    time_t max_processed_insert_time = 0;  //队列中日志的最大的插入时间
     queue.getInsertTimes(min_unprocessed_insert_time, max_processed_insert_time);
 
-    /// Load start time, then finish time to avoid reporting false delay when start time is updated
-    /// between loading of two variables.
-    time_t queue_update_start_time = last_queue_update_start_time.load();
-    time_t queue_update_finish_time = last_queue_update_finish_time.load();
+    /// Load start time, then finish time to avoid reporting false delay when start time is updated between loading of two variables.
+    time_t queue_update_start_time = last_queue_update_start_time.load();//队列最近一次更新的开始时间
+    time_t queue_update_finish_time = last_queue_update_finish_time.load();//队列最近一次更新的结束时间
 
-    time_t current_time = time(nullptr);
+    time_t current_time = time(nullptr);//返回的是从纪元开始至今秒数的整数类型值
 
-    if (!queue_update_finish_time)
+    if (!queue_update_finish_time)//如果队列最近一次的更新一直没结束, 表示正在向当前队列中加操作日志, 则认为延迟时间是无穷大
     {
         /// We have not updated queue even once yet (perhaps replica is readonly).
         /// As we have no info about the current state of replication log, return effectively infinite delay.
@@ -4062,18 +4061,23 @@ time_t StorageReplicatedMergeTree::getAbsoluteDelay() const
     }
     else if (min_unprocessed_insert_time)
     {
+        //队列中有未处理的日志, 如果当前时间 > 插入的时间, 表示队列中由未处理的日志, 两者的差值就是延迟时间;
+        //否则延迟时间=0
         /// There are some unprocessed insert entries in queue.
         return (current_time > min_unprocessed_insert_time) ? (current_time - min_unprocessed_insert_time) : 0;
-    }
+    }//到这里表示队列中没有未处理的日志了
     else if (queue_update_start_time > queue_update_finish_time)
     {
         /// Queue is empty, but there are some in-flight or failed queue update attempts
         /// (likely because of problems with connecting to ZooKeeper).
         /// Return the time passed since last attempt.
+        //队列为空, 但有一些正在运行或失败的队列更新尝试（可能是由于连接到ZooKeeper时出现问题）。
+        // 返回上次尝试后经过的时间。
         return (current_time > queue_update_start_time) ? (current_time - queue_update_start_time) : 0;
     }
     else
     {
+        //队列为空 且 没有其他问题, 则认为没有延迟, 当前副本是最新的
         /// Everything is up-to-date.
         return 0;
     }
@@ -4081,18 +4085,30 @@ time_t StorageReplicatedMergeTree::getAbsoluteDelay() const
 
 void StorageReplicatedMergeTree::getReplicaDelays(time_t & out_absolute_delay, time_t & out_relative_delay)
 {
+    //先确保本机数据不是readonly状态
     assertNotReadonly();
 
     time_t current_time = time(nullptr);
-
-    out_absolute_delay = getAbsoluteDelay();
-    out_relative_delay = 0;
 
     /** Relative delay is the maximum difference of absolute delay from any other replica,
       *  (if this replica lags behind any other live replica, or zero, otherwise).
       * Calculated only if the absolute delay is large enough.
       */
+    /// 绝对延迟是根据本机的日志队列中的日志处理进度计算的;
+    /// 相对延迟是绝对延迟与其他副本的延迟的最大差值, (其实就是看本地副本是不是落后于其他副本).
+    /// 如果本地副本落后与其他副本, 则相对延迟不为0, 否则的话相对延迟为0;
 
+    /// 相对延迟默认为0, 只有在绝对延迟大于min_relative_delay_to_yield_leadership时才需要计算相对延迟
+    out_absolute_delay = getAbsoluteDelay();
+    out_relative_delay = 0;
+
+
+    //当本地副本完全同步时, 相对延迟 = 绝对延迟
+    //否则当本地副本不是完全同步的且还有未处理的同步任务时, 相对延迟 = 绝对延迟 - 副本的最小延迟
+
+    //只有在绝对延迟 大于 min_relative_delay_to_yield_leadership时才需要计算相对延迟
+    //本机绝对延迟小于等于最大容许的延迟时间, 则本机还可以成为leader, 否则需要计算相对延迟, 再根据相对延迟判断是不是需要本机让出leader角色
+    //min_relative_delay_to_yield_leadership=120s
     if (out_absolute_delay < static_cast<time_t>(settings.min_relative_delay_to_yield_leadership))
         return;
 
@@ -4103,7 +4119,7 @@ void StorageReplicatedMergeTree::getReplicaDelays(time_t & out_absolute_delay, t
 
     Strings replicas = zookeeper->getChildren(zookeeper_path + "/replicas");
 
-    for (const auto & replica : replicas)
+    for (const auto & replica : replicas)//遍历所有的副本
     {
         if (replica == replica_name)
             continue;
@@ -4136,9 +4152,9 @@ void StorageReplicatedMergeTree::getReplicaDelays(time_t & out_absolute_delay, t
             max_replicas_unprocessed_insert_time = replica_time;
     }
 
-    if (have_replica_with_nothing_unprocessed)
+    if (have_replica_with_nothing_unprocessed)//当副本完全同步时, 相对延迟 = 绝对延迟
         out_relative_delay = out_absolute_delay;
-    else
+    else                                      //否则当副本不是完全同步的, 还有未处理的同步任务时, 相对延迟 = 绝对延迟 - 副本的最小延迟
     {
         max_replicas_unprocessed_insert_time = std::min(current_time, max_replicas_unprocessed_insert_time);
         time_t min_replicas_delay = current_time - max_replicas_unprocessed_insert_time;

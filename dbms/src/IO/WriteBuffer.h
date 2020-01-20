@@ -32,6 +32,8 @@ public:
 
     /** write the data in the buffer (from the beginning of the buffer to the current position);
       * set the position to the beginning; throw an exception, if something is wrong
+      *
+      * 在缓冲区中写入数据(从缓冲区的开始到当前位置); 将位置设置为开头; 如果有问题, 则抛出异常
       */
     inline void next()
     {
@@ -41,7 +43,7 @@ public:
 
         try
         {
-            nextImpl();
+            nextImpl();//重点看下
         }
         catch (...)
         {
@@ -94,6 +96,7 @@ private:
     /** Write the data in the buffer (from the beginning of the buffer to the current position).
       * Throw an exception if something is wrong.
       */
+    //重点看实现类中的方法
     virtual void nextImpl() { throw Exception("Cannot write after end of buffer.", ErrorCodes::CANNOT_WRITE_AFTER_END_OF_BUFFER); }
 };
 

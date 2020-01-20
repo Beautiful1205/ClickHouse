@@ -38,7 +38,7 @@ private:
         else
             started = true;
 
-        swapBuffers();
+        swapBuffers();//交换缓冲区
 
         /// The data will be written in separate stream.
         pool.schedule([this] { thread(); });

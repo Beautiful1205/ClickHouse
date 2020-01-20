@@ -4,37 +4,41 @@
 #include <Core/Row.h>
 #include <IO/WriteBuffer.h>
 
-namespace DB
-{
+namespace DB {
 
-class Block;
-class MergeTreeData;
-struct FormatSettings;
-struct MergeTreeDataPartChecksums;
+    class Block;
+
+    class MergeTreeData;
+
+    struct FormatSettings;
+    struct MergeTreeDataPartChecksums;
 
 /// This class represents a partition value of a single part and encapsulates its loading/storing logic.
-struct MergeTreePartition
-{
-    Row value;
+    struct MergeTreePartition {
+        Row value;
 
-public:
-    MergeTreePartition() = default;
+    public:
+        MergeTreePartition() = default;
 
-    explicit MergeTreePartition(Row value_) : value(std::move(value_)) {}
+        explicit MergeTreePartition(Row value_) : value(std::move(value_)) {}
 
-    /// For month-based partitioning.
-    explicit MergeTreePartition(UInt32 yyyymm) : value(1, yyyymm) {}
+        /// For month-based partitioning.
+        explicit MergeTreePartition(UInt32 yyyymm) : value(1, yyyymm) {}
 
-    String getID(const MergeTreeData & storage) const;
-    String getID(const Block & partition_key_sample) const;
+        String getID(const MergeTreeData &storage) const;
 
-    void serializeText(const MergeTreeData & storage, WriteBuffer & out, const FormatSettings & format_settings) const;
+        String getID(const Block &partition_key_sample) const;
 
-    void load(const MergeTreeData & storage, const String & part_path);
-    void store(const MergeTreeData & storage, const String & part_path, MergeTreeDataPartChecksums & checksums) const;
-    void store(const Block & partition_key_sample, const String & part_path, MergeTreeDataPartChecksums & checksums) const;
+        void serializeText(const MergeTreeData &storage, WriteBuffer &out, const FormatSettings &format_settings) const;
 
-    void assign(const MergeTreePartition & other) { value.assign(other.value); }
-};
+        void load(const MergeTreeData &storage, const String &part_path);
+
+        void store(const MergeTreeData &storage, const String &part_path, MergeTreeDataPartChecksums &checksums) const;
+
+        void
+        store(const Block &partition_key_sample, const String &part_path, MergeTreeDataPartChecksums &checksums) const;
+
+        void assign(const MergeTreePartition &other) { value.assign(other.value); }
+    };
 
 }

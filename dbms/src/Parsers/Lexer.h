@@ -3,14 +3,13 @@
 #include <stddef.h>
 
 
-namespace DB
-{
+namespace DB {
 
 #define APPLY_FOR_TOKENS(M) \
     M(Whitespace) \
     M(Comment) \
     \
-    M(BareWord)               /** Either keyword (SELECT) or identifier (column) */ \
+    M(BareWord)               /** Either keyword (SELECT) or identifier (column)  表示该token是关键字或者是表的某个列名 */ \
     \
     M(Number)                 /** Always non-negative. No leading plus. 123 or something like 123.456e12, 0x123p12 */ \
     M(StringLiteral)          /** 'hello word', 'hello''word', 'hello\'word\\' */ \
@@ -62,52 +61,55 @@ namespace DB
     M(ErrorMaxQuerySizeExceeded) \
 
 
-enum class TokenType
-{
+    enum class TokenType {
 #define M(TOKEN) TOKEN,
-APPLY_FOR_TOKENS(M)
+        APPLY_FOR_TOKENS(M)
 #undef M
-};
+    };
 
-const char * getTokenName(TokenType type);
-const char * getErrorTokenDescription(TokenType type);
+    const char *getTokenName(TokenType type);
 
-
-struct Token
-{
-    TokenType type;
-    const char * begin;
-    const char * end;
-
-    size_t size() const { return end - begin; }
-
-    Token() = default;
-    Token(TokenType type, const char * begin, const char * end) : type(type), begin(begin), end(end) {}
-
-    bool isSignificant() const { return type != TokenType::Whitespace && type != TokenType::Comment; }
-    bool isError() const { return type > TokenType::EndOfStream; }
-    bool isEnd() const { return type == TokenType::EndOfStream; }
-};
+    const char *getErrorTokenDescription(TokenType type);
 
 
-class Lexer
-{
-public:
-    Lexer(const char * begin, const char * end, size_t max_query_size = 0)
-            : begin(begin), pos(begin), end(end), max_query_size(max_query_size) {}
-    Token nextToken();
+    struct Token {
+        TokenType type;
+        const char *begin;
+        const char *end;
 
-private:
-    const char * const begin;
-    const char * pos;
-    const char * const end;
+        size_t size() const { return end - begin; }
 
-    const size_t max_query_size;
+        Token() = default;
 
-    Token nextTokenImpl();
+        Token(TokenType type, const char *begin, const char *end) : type(type), begin(begin), end(end) {}
 
-    /// This is needed to disambiguate tuple access operator from floating point number (.1).
-    TokenType prev_significant_token_type = TokenType::Whitespace;   /// No previous token.
-};
+        bool isSignificant() const { return type != TokenType::Whitespace && type != TokenType::Comment; }
+
+        bool isError() const { return type > TokenType::EndOfStream; }
+
+        bool isEnd() const { return type == TokenType::EndOfStream; }
+    };
+
+
+    class Lexer {//词法分析
+    public:
+        Lexer(const char *begin, const char *end, size_t max_query_size = 0)
+                : begin(begin), pos(begin), end(end), max_query_size(max_query_size) {}
+
+        Token nextToken();
+
+    private:
+        const char *const begin;
+        const char *pos;
+        const char *const end;
+
+        const size_t max_query_size;
+
+        Token nextTokenImpl();
+
+        /// This is needed to disambiguate tuple access operator from floating point number (.1).
+        //这个是用来区分浮点数和元组访问运算符的,
+        TokenType prev_significant_token_type = TokenType::Whitespace;   /// No previous token.
+    };
 
 }

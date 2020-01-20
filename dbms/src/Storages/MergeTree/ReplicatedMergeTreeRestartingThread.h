@@ -19,6 +19,9 @@ class StorageReplicatedMergeTree;
   * Starts participation in the leader selection. Starts all background threads.
   * Then monitors whether the session has expired. And if it expired, it will reinitialize it.
   */
+//用于初始化ZK session会话.
+//暴露临时节点, 设置副本检测需要的节点值.
+//参与leader选举, 启动所有后台线程. 然后监控session会话是否过期, 如果过期了就重新初始化.
 class ReplicatedMergeTreeRestartingThread
 {
 public:

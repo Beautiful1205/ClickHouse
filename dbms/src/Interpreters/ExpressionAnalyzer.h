@@ -73,6 +73,7 @@ protected:
 
 
 /** Transforms an expression from a syntax tree into a sequence of actions to execute it.
+  * 将语法树的一个表达式转换为执行的一系列操作
   *
   * NOTE: if `ast` is a SELECT query from a table, the structure of this table should not change during the lifetime of ExpressionAnalyzer.
   */

@@ -594,15 +594,17 @@ bool Context::hasUserProperty(const String & database, const String & table, con
 
     const auto & props = shared->users_manager->getUser(client_info.current_user)->table_props;
 
-    auto db = props.find(database);
+    //find()方法返回值是一个迭代器，成功返回迭代器指向要查找的元素，失败返回的迭代器指向end
+    auto db = props.find(database);//数据库是否存在
     if (db == props.end())
         return false;
 
-    auto table_props = db->second.find(table);
+    auto table_props = db->second.find(table);//数据库存在, 数据表是否存在
     if (table_props == db->second.end())
         return false;
 
-    return !!table_props->second.count(name);
+    //count()方法返回值是一个整数，1表示有这个元素，0表示没有这个元素
+    return !!table_props->second.count(name);//数据库存在, 数据表存在, 'filter'属性是否存在. count()返回0或1, !!count()返回true或false
 }
 
 const String & Context::getUserProperty(const String & database, const String & table, const String & name) const

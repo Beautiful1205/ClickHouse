@@ -21,6 +21,8 @@ bool isLocalAddress(const Poco::Net::IPAddress & address)
                       * Theoretically, this may not be correct - depends on `route` setting
                       *  - through which interface we will actually access the specified address.
                       */
+                    //在不考虑scope的情况下比较address.
+                    //理论上这也可能不正确, 这取决与route配置 (route配置是用于决定怎么指向的具体IP)
                     return interface.address().length() == address.length()
                         && 0 == memcmp(interface.address().addr(), address.addr(), address.length());
                 });

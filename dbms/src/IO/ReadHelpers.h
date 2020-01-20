@@ -100,8 +100,11 @@ inline void readChar(char & x, ReadBuffer & buf)
         throwReadAfterEOF();
 }
 
+// POD(Plain Old Data, 普通旧数据)类型是从C++11开始引入的概念, Plain代表它是一个普通类型, Old代表它可以与C兼容.
+// 通俗的讲, 一个类、结构、共用体对象或非构造类型对象能通过二进制拷贝（如memcpy()）后还能保持其数据不变正常使用的就是POD类型的对象.
+// 严格来讲, 一个对象既是普通类型（Trivial Type）又是标准布局类型（Standard-layout Type）那么这个对象就是POD类型
 
-/// Read POD-type in native format
+/// Read POD-type in native format  以本机格式读取POD类型
 template <typename T>
 inline void readPODBinary(T & x, ReadBuffer & buf)
 {

@@ -29,12 +29,13 @@ MultiplexedConnections::MultiplexedConnections(
         const Settings & settings_, const ThrottlerPtr & throttler)
     : settings(settings_)
 {
-    /// If we didn't get any connections from pool and getMany() did not throw exceptions, this means that
-    /// `skip_unavailable_shards` was set. Then just return.
+    /// If we didn't get any connections from pool and getMany() did not throw exceptions,
+    /// this means that `skip_unavailable_shards` was set. Then just return.
     if (connections.empty())
         return;
 
     replica_states.reserve(connections.size());
+    // 遍历connections数组, 构建ReplicaState, 构建replica_states
     for (size_t i = 0; i < connections.size(); ++i)
     {
         Connection * connection = &(*connections[i]);

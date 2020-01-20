@@ -53,7 +53,7 @@ struct User
 {
     String name;
 
-    /// Required password. Could be stored in plaintext or in SHA256.
+    /// Required password. Could be stored in plaintext or in SHA256. 明文 或 SHA256加密
     String password;
     String password_sha256_hex;
 

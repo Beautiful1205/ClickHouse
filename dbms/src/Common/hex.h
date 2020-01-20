@@ -3,6 +3,7 @@
 
 
 /// Maps 0..15 to 0..9A..F or 0..9a..f correspondingly.
+//将0..15 对应地映射成 0..9A..F 或 0..9a..f
 
 extern const char * const hex_digit_to_char_uppercase_table;
 extern const char * const hex_digit_to_char_lowercase_table;

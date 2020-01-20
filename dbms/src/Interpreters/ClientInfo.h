@@ -38,6 +38,7 @@ public:
         NO_QUERY = 0,            /// Uninitialized object.
         INITIAL_QUERY = 1,
         SECONDARY_QUERY = 2,    /// Query that was initiated by another query for distributed or ON CLUSTER query execution.
+                                //分布式查询 or 带ON CLUSTER <cluster>的SQL, 则QueryKind = 2
     };
 
 

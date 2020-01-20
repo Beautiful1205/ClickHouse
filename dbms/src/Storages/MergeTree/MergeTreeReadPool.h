@@ -13,12 +13,20 @@ namespace DB
 using MergeTreeReadTaskPtr = std::unique_ptr<MergeTreeReadTask>;
 
 /**   Provides read tasks for MergeTreeThreadSelectBlockInputStream`s in fine-grained batches, allowing for more
- *    uniform distribution of work amongst multiple threads. All parts and their ranges are divided into `threads`
- *    workloads with at most `sum_marks / threads` marks. Then, threads are performing reads from these workloads
- *    in "sequential" manner, requesting work in small batches. As soon as some thread has exhausted
- *    it's workload, it either is signaled that no more work is available (`do_not_steal_tasks == false`) or
+ *    uniform distribution of work amongst multiple threads.
+ *    All parts and their ranges are divided into `threads` workloads with at most `sum_marks / threads` marks.
+ *    Then, threads are performing reads from these workloads in "sequential" manner, requesting work in small batches.
+ *    As soon as some thread has exhausted it's workload,
+ *    it either is signaled that no more work is available (`do_not_steal_tasks == false`) or
  *    continues taking small batches from other threads' workloads (`do_not_steal_tasks == true`).
  */
+/**为MergeTreeThreadSelectBlockInputStream需要读取的每个part创建task, 使多个线程之间更均匀地分配工作
+  * 所有的part及其ranges以线程工作负载的方式(workloads)被划分到每个线程上, 每个线程最多处理(sum_marks/threads)个mark
+  * 然后, 线程顺序地执行这些工作负载, 以小批量请求工作方式读取数据
+  * 一旦某个线程耗尽了它的工作负载, 就会发出信号, 表明没有更多的工作可用（`do_not_steal_tasks==false`）,
+  * 或者继续从其他线程的工作负载中进行小批量处理（`do_not_steal_tasks==true`）
+  */
+
 class MergeTreeReadPool : private boost::noncopyable
 {
 public:

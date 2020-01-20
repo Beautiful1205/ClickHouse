@@ -15,157 +15,162 @@
 #include "IServer.h"
 
 
-namespace CurrentMetrics
-{
+namespace CurrentMetrics {
     extern const Metric TCPConnection;
 }
 
 namespace Poco { class Logger; }
 
-namespace DB
-{
+namespace DB {
 
-class ColumnsDescription;
+    class ColumnsDescription;
 
-/// State of query processing.
-struct QueryState
-{
-    /// Identifier of the query.
-    String query_id;
+/// State of query processing. 保存处理SQL过程中的各种状态
+    struct QueryState {
+        /// Identifier of the query.
+        String query_id;
 
-    QueryProcessingStage::Enum stage = QueryProcessingStage::Complete;
-    Protocol::Compression compression = Protocol::Compression::Disable;
+        QueryProcessingStage::Enum stage = QueryProcessingStage::Complete;
+        Protocol::Compression compression = Protocol::Compression::Disable;
 
-    /// From where to read data for INSERT.
-    std::shared_ptr<ReadBuffer> maybe_compressed_in;
-    BlockInputStreamPtr block_in;
+        /// From where to read data for INSERT.
+        std::shared_ptr<ReadBuffer> maybe_compressed_in;
+        BlockInputStreamPtr block_in;//读出block stream（流式读取）
 
-    /// Where to write result data.
-    std::shared_ptr<WriteBuffer> maybe_compressed_out;
-    BlockOutputStreamPtr block_out;
+        /// Where to write result data.
+        std::shared_ptr<WriteBuffer> maybe_compressed_out;
+        BlockOutputStreamPtr block_out;//block stream写入（流式写入）
 
-    /// Query text.
-    String query;
-    /// Streams of blocks, that are processing the query.
-    BlockIO io;
+        /// Query text.
+        String query;
+        /// Streams of blocks, that are processing the query.
+        BlockIO io;//这是针对内存而言
 
-    /// Is request cancelled
-    bool is_cancelled = false;
-    /// empty or not
-    bool is_empty = true;
-    /// Data was sent.
-    bool sent_all_data = false;
-    /// Request requires data from the client (INSERT, but not INSERT SELECT).
-    bool need_receive_data_for_insert = false;
+        /// Is request cancelled
+        bool is_cancelled = false;
+        /// empty or not
+        bool is_empty = true;
+        /// Data was sent.
+        bool sent_all_data = false;
+        /// Request requires data from the client (INSERT, but not INSERT SELECT).
+        bool need_receive_data_for_insert = false;
 
-    /// To output progress, the difference after the previous sending of progress.
-    Progress progress;
+        /// To output progress, the difference after the previous sending of progress.
+        Progress progress;
 
-    /// Timeouts setter for current query
-    std::unique_ptr<TimeoutSetter> timeout_setter;
+        /// Timeouts setter for current query
+        std::unique_ptr<TimeoutSetter> timeout_setter;
 
-    /// A queue with internal logs that will be passed to client
-    InternalTextLogsQueuePtr logs_queue;
-    BlockOutputStreamPtr logs_block_out;
+        /// A queue with internal logs that will be passed to client
+        InternalTextLogsQueuePtr logs_queue;
+        BlockOutputStreamPtr logs_block_out;
 
-    void reset()
-    {
-        *this = QueryState();
-    }
+        void reset() {
+            *this = QueryState();
+        }
 
-    bool empty()
-    {
-        return is_empty;
-    }
-};
+        bool empty() {
+            return is_empty;
+        }
+    };
 
 
-class TCPHandler : public Poco::Net::TCPServerConnection
-{
-public:
-    TCPHandler(IServer & server_, const Poco::Net::StreamSocket & socket_)
-        : Poco::Net::TCPServerConnection(socket_)
-        , server(server_)
-        , log(&Poco::Logger::get("TCPHandler"))
-        , connection_context(server.context())
-        , query_context(server.context())
-    {
-        server_display_name = server.config().getString("display_name", getFQDNOrHostName());
-    }
+    class TCPHandler : public Poco::Net::TCPServerConnection {
+    public:
+        TCPHandler(IServer &server_, const Poco::Net::StreamSocket &socket_)
+                : Poco::Net::TCPServerConnection(socket_), server(server_), log(&Poco::Logger::get("TCPHandler")),
+                  connection_context(server.context()), query_context(server.context()) {
+            server_display_name = server.config().getString("display_name", getFQDNOrHostName());
+        }
 
-    void run();
+        void run();
 
-    /// This method is called right before the query execution.
-    virtual void customizeContext(DB::Context & /*context*/) {}
+        /// This method is called right before the query execution.
+        virtual void customizeContext(DB::Context & /*context*/) {}
 
-private:
-    IServer & server;
-    Poco::Logger * log;
+    private:
+        IServer &server;
+        Poco::Logger *log;
 
-    String client_name;
-    UInt64 client_version_major = 0;
-    UInt64 client_version_minor = 0;
-    UInt64 client_version_patch = 0;
-    UInt64 client_revision = 0;
+        String client_name;
+        UInt64 client_version_major = 0;
+        UInt64 client_version_minor = 0;
+        UInt64 client_version_patch = 0;
+        UInt64 client_revision = 0;
 
-    Context connection_context;
-    std::optional<Context> query_context;
+        Context connection_context;
+        std::optional<Context> query_context;
 
-    /// Streams for reading/writing from/to client connection socket.
-    std::shared_ptr<ReadBuffer> in;
-    std::shared_ptr<WriteBuffer> out;
+        /// Streams for reading/writing from/to client connection socket.
+        std::shared_ptr<ReadBuffer> in;//从客户端读取的数据
+        std::shared_ptr<WriteBuffer> out;//要写到客户端的数据
 
-    /// Time after the last check to stop the request and send the progress.
-    Stopwatch after_check_cancelled;
-    Stopwatch after_send_progress;
+        /// Time after the last check to stop the request and send the progress.
+        Stopwatch after_check_cancelled;
+        Stopwatch after_send_progress;
 
-    String default_database;
+        String default_database;
 
-    /// At the moment, only one ongoing query in the connection is supported at a time.
-    QueryState state;
+        /// At the moment, only one ongoing query in the connection is supported at a time.
+        QueryState state;
 
-    CurrentMetrics::Increment metric_increment{CurrentMetrics::TCPConnection};
+        CurrentMetrics::Increment metric_increment{CurrentMetrics::TCPConnection};
 
-    /// It is the name of the server that will be sent to the client.
-    String server_display_name;
+        /// It is the name of the server that will be sent to the client.
+        String server_display_name;
 
-    void runImpl();
+        void runImpl();
 
-    void receiveHello();
-    bool receivePacket();
-    void receiveQuery();
-    bool receiveData();
-    void readData(const Settings & global_settings);
+        void receiveHello();
 
-    /// Process INSERT query
-    void processInsertQuery(const Settings & global_settings);
+        bool receivePacket();
 
-    /// Process a request that does not require the receiving of data blocks from the client
-    void processOrdinaryQuery();
+        void receiveQuery();
 
-    void processTablesStatusRequest();
+        bool receiveData();
 
-    void sendHello();
-    void sendData(const Block & block);    /// Write a block to the network.
-    void sendLogData(const Block & block);
-    void sendTableColumns(const ColumnsDescription & columns);
-    void sendException(const Exception & e, bool with_stack_trace);
-    void sendProgress();
-    void sendLogs();
-    void sendEndOfStream();
-    void sendProfileInfo();
-    void sendTotals();
-    void sendExtremes();
+        void readData(const Settings &global_settings);
 
-    /// Creates state.block_in/block_out for blocks read/write, depending on whether compression is enabled.
-    void initBlockInput();
-    void initBlockOutput(const Block & block);
-    void initLogsBlockOutput(const Block & block);
+        /// Process INSERT query
+        void processInsertQuery(const Settings &global_settings);
 
-    bool isQueryCancelled();
+        /// Process a request that does not require the receiving of data blocks from the client
+        void processOrdinaryQuery();
 
-    /// This function is called from different threads.
-    void updateProgress(const Progress & value);
-};
+        void processTablesStatusRequest();
+
+        void sendHello();
+
+        void sendData(const Block &block);    /// Write a block to the network.
+        void sendLogData(const Block &block);
+
+        void sendTableColumns(const ColumnsDescription &columns);
+
+        void sendException(const Exception &e, bool with_stack_trace);
+
+        void sendProgress();
+
+        void sendLogs();
+
+        void sendEndOfStream();
+
+        void sendProfileInfo();
+
+        void sendTotals();
+
+        void sendExtremes();
+
+        /// Creates state.block_in/block_out for blocks read/write, depending on whether compression is enabled.
+        void initBlockInput();
+
+        void initBlockOutput(const Block &block);
+
+        void initLogsBlockOutput(const Block &block);
+
+        bool isQueryCancelled();
+
+        /// This function is called from different threads.
+        void updateProgress(const Progress &value);
+    };
 
 }

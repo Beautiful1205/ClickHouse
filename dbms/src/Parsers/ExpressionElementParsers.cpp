@@ -133,26 +133,26 @@ bool ParserSubquery::parseImpl(Pos & pos, ASTPtr & node, Expected & expected)
 bool ParserIdentifier::parseImpl(Pos & pos, ASTPtr & node, Expected &)
 {
     /// Identifier in backquotes or in double quotes
-    if (pos->type == TokenType::QuotedIdentifier)
+    if (pos->type == TokenType::QuotedIdentifier)//引号标识符
     {
         ReadBufferFromMemory buf(pos->begin, pos->size());
         String s;
 
         if (*pos->begin == '`')
-            readBackQuotedStringWithSQLStyle(s, buf);
+            readBackQuotedStringWithSQLStyle(s, buf);//反引号
         else
-            readDoubleQuotedStringWithSQLStyle(s, buf);
+            readDoubleQuotedStringWithSQLStyle(s, buf);//双引号
 
         if (s.empty())    /// Identifiers "empty string" are not allowed.
             return false;
 
-        node = std::make_shared<ASTIdentifier>(s);
+        node = std::make_shared<ASTIdentifier>(s);//在向语法树添加元素
         ++pos;
         return true;
     }
     else if (pos->type == TokenType::BareWord)
     {
-        node = std::make_shared<ASTIdentifier>(String(pos->begin, pos->end));
+        node = std::make_shared<ASTIdentifier>(String(pos->begin, pos->end));//在向语法树添加元素
         ++pos;
         return true;
     }
@@ -1229,17 +1229,30 @@ bool ParserWithOptionalAlias::parseImpl(Pos & pos, ASTPtr & node, Expected & exp
 
     /** Little hack.
       *
+      * 表的列名可以时关键字, 但是强烈不建议这么做
+      * 允许在SELECT语句中指定别名时省略关键字AS, 如SELECT col AS x FROM table 和 SELECT col x FROM table等价, 都是可以的.
+      * 指定的别名不能和关键字相同, 别名和关键字相同时则不能省略关键字AS
+      * SELECT where AS from FROM table 是可以的, SELECT where from FROM table 是错误的.
+      *
       * In the SELECT section, we allow parsing aliases without specifying the AS keyword.
       * These aliases can not be the same as the query keywords.
       * And the expression itself can be an identifier that matches the keyword.
-      * For example, a column may be called where. And in the query it can be written `SELECT where AS x FROM table` or even `SELECT where x FROM table`.
+      * For example, a column may be called where.
+      * And in the query it can be written `SELECT where AS x FROM table` or even `SELECT where x FROM table`.
       * Even can be written `SELECT where AS from FROM table`, but it can not be written `SELECT where from FROM table`.
       * See the ParserAlias implementation for details.
+      *
+      *
+      * 如SELECT x, y, z, FROM tbl这个SQL中, SELECT部分最后多了个逗号(,),
+      * 解析的时候会将FROM作为表的某一列, tbl作为FROM列的别名。
+      * 为了避免这种情况, 对于名为FROM的标识符, 我们不允许在没有AS关键字的情况下解析别名.
       *
       * But there is a small problem - an inconvenient error message if there is an extra comma in the SELECT section at the end.
       * Although this error is very common. Example: `SELECT x, y, z, FROM tbl`
       * If you do nothing, it's parsed as a column with the name FROM and alias tbl.
       * To avoid this situation, we do not allow the parsing of the alias without the AS keyword for the identifier with the name FROM.
+      *
+      * 标识符被引号引起来的时候也是一个特殊的例子.
       *
       * Note: this also filters the case when the identifier is quoted.
       * Example: SELECT x, y, z, `FROM` tbl. But such a case could be solved.

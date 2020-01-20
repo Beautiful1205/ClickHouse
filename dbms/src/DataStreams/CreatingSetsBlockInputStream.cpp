@@ -41,7 +41,7 @@ CreatingSetsBlockInputStream::CreatingSetsBlockInputStream(
     children.push_back(input);
 }
 
-
+//重点, 找一下这个方法是哪里调用的
 Block CreatingSetsBlockInputStream::readImpl()
 {
     Block res;

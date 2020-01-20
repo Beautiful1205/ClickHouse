@@ -13,6 +13,11 @@ namespace DB
 /// Used to read data from single part with select query
 /// Cares about PREWHERE, virtual columns, indexes etc.
 /// To read data from multiple parts, Storage (MergeTree) creates multiple such objects.
+
+/** MergeTreeSelectBlockInputStream用于当SELECT只需要从一个part中读取数据的情况
+  * 会使用PREWHERE、虚拟列、索引等条件
+  * 如果需要从多个part中读取数据, MergeTree引擎将创建多个这样的对象, 详见MergeTreeThreadSelectBlockInputStream
+  */
 class MergeTreeSelectBlockInputStream : public MergeTreeBaseSelectBlockInputStream
 {
 public:

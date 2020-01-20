@@ -12,7 +12,7 @@ namespace DB
 class Block;
 class FormatSchemaInfo;
 
-
+//用于反序列化来自google protobuf格式的数据的流
 /** Stream designed to deserialize data from the google protobuf format.
   * Each row is read as a separated message.
   * These messages are delimited according to documentation

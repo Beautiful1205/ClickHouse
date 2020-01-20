@@ -125,15 +125,30 @@ The `ALTER` query for changing columns is replicated. The instructions are saved
 
 #### ALTER Query Limitations
 
-The `ALTER` query lets you create and delete separate elements (columns) in nested data structures, but not whole nested data structures. To add a nested data structure, you can add columns with a name like `name.nested_name` and the type `Array(T)`. A nested data structure is equivalent to multiple array columns with a name that has the same prefix before the dot.
+The `ALTER` query lets you create and delete separate elements (columns) in nested data structures, but not whole nested data structures.
+To add a nested data structure, you can add columns with a name like `name.nested_name` and the type `Array(T)`.
+A nested data structure is equivalent to multiple array columns with a name that has the same prefix before the dot.
 
-There is no support for deleting columns in the primary key or the sampling key (columns that are used in the `ENGINE` expression). Changing the type for columns that are included in the primary key is only possible if this change does not cause the data to be modified (for example, it is allowed to add values to an Enum or to change a type from `DateTime` to `UInt32`).
+There is no support for deleting columns in the primary key or the sampling key (columns that are used in the `ENGINE` expression).
+Changing the type for columns that are included in the primary key is only possible if this change does not cause the data to be modified
+(for example, it is allowed to add values to an Enum or to change a type from `DateTime` to `UInt32`).
 
-If the `ALTER` query is not sufficient to make the table changes you need, you can create a new table, copy the data to it using the [INSERT SELECT](insert_into.md#insert_query_insert-select) query, then switch the tables using the [RENAME](misc.md#misc_operations-rename) query and delete the old table. You can use the [clickhouse-copier](../operations/utils/clickhouse-copier.md) as an alternative to the `INSERT SELECT` query. 
+If the `ALTER` query is not sufficient to make the table changes you need, you can create a new table,
+copy the data to it using the [INSERT SELECT](insert_into.md#insert_query_insert-select) query,
+then switch the tables using the [RENAME](misc.md#misc_operations-rename) query and delete the old table.
+You can use the [clickhouse-copier](../operations/utils/clickhouse-copier.md) as an alternative to the `INSERT SELECT` query.
 
-The `ALTER` query blocks all reads and writes for the table. In other words, if a long `SELECT` is running at the time of the `ALTER` query, the `ALTER` query will wait for it to complete. At the same time, all new queries to the same table will wait while this `ALTER` is running.
+The `ALTER` query blocks all reads and writes for the table.
+In other words, if a long `SELECT` is running at the time of the `ALTER` query, the `ALTER` query will wait for it to complete.
+At the same time, all new queries to the same table will wait while this `ALTER` is running.
 
-For tables that don't store data themselves (such as `Merge` and `Distributed`), `ALTER` just changes the table structure, and does not change the structure of subordinate tables. For example, when running ALTER for a `Distributed` table, you will also need to run `ALTER` for the tables on all remote servers.
+For tables that don't store data themselves (such as `Merge` and `Distributed`), `ALTER` just changes the table structure,
+and does not change the structure of subordinate tables. For example, when running ALTER for a `Distributed` table,
+you will also need to run `ALTER` for the tables on all remote servers.
+
+
+
+
 
 ### Manipulations With Key Expressions
 
@@ -143,14 +158,14 @@ The following command is supported:
 MODIFY ORDER BY new_expression
 ```
 
-It only works for tables in the [`MergeTree`](../operations/table_engines/mergetree.md) family (including
-[replicated](../operations/table_engines/replication.md) tables). The command changes the
-[sorting key](../operations/table_engines/mergetree.md) of the table
-to `new_expression` (an expression or a tuple of expressions). Primary key remains the same.
+It only works for tables in the [`MergeTree`](../operations/table_engines/mergetree.md) family (including [replicated](../operations/table_engines/replication.md) tables).
+The command changes the [sorting key](../operations/table_engines/mergetree.md) of the table to `new_expression` (an expression or a tuple of expressions).
+Primary key remains the same. 主键保持不变
 
-The command is lightweight in a sense that it only changes metadata. To keep the property that data part
-rows are ordered by the sorting key expression you cannot add expressions containing existing columns
-to the sorting key (only columns added by the `ADD COLUMN` command in the same `ALTER` query).
+The command is lightweight in a sense that it only changes metadata.
+To keep the property that data part rows are ordered by the sorting key expression,
+you cannot add expressions containing existing columns to the sorting key (only columns added by the `ADD COLUMN` command in the same `ALTER` query).
+不能单独使用增加排序键的命令, 只能和ADD COLUMN一起使用. 此时改变排序键不会对主键造成影响, 主键保持不变。
 
 
 ### Manipulations With Data Skipping Indices
@@ -165,6 +180,9 @@ are available:
 
 These commands are lightweight in a sense that they only change metadata or remove files.
 Also, they are replicated (syncing indices metadata through ZooKeeper).
+
+
+
 
 ### Manipulations With Partitions and Parts {#alter_manipulations-with-partitions}
 

@@ -11,9 +11,9 @@ class CompressedReadBufferFromFile;
 
 
 /** The Native format can contain a separately located index,
-  *  which allows you to understand where what column is located,
-  *  and skip unnecessary columns.
+  *  which allows you to understand where what column is located, and skip unnecessary columns.
   */
+//本地格式(Native format)可以包含单独定位的索引, 索引保存着每个列的位置, 并跳过不必要的列
 
 /** The position of one piece of a single column. */
 struct IndexOfOneColumnForNativeFormat

@@ -15,6 +15,9 @@ class ReadBuffer;
 
 /** A stream for inputting data in csv format.
   * Does not conform with https://tools.ietf.org/html/rfc4180 because it skips spaces and tabs between values.
+  *
+  * 以csv格式输入数据的流.
+  * 不符合https://tools.ietf.org/html/rfc4180, 因为它跳过值之间的空格和制表符
   */
 class CSVRowInputStream : public IRowInputStream
 {

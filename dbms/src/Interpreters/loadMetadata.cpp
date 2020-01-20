@@ -48,7 +48,7 @@ static void executeCreateQuery(
     if (pool)
         interpreter.setDatabaseLoadingThreadpool(*pool);
     interpreter.setForceRestoreData(has_force_restore_data_flag);
-    interpreter.execute();
+    interpreter.execute();//执行器执行加载database的SQL, 并完成加载数据表的操作
 }
 
 
@@ -59,8 +59,8 @@ static void loadDatabase(
     ThreadPool * thread_pool,
     bool force_restore_data)
 {
-    /// There may exist .sql file with database creation statement.
-    /// Or, if it is absent, then database with default engine is created.
+    /// There may exist .sql file with database creation statement.          database_name.sql文件包含了创建数据库的SQL
+    /// Or, if it is absent, then database with default engine is created.   如果database_name.sql文件不存在, 使用默认引擎建立数据库
 
     String database_attach_query;
     String database_metadata_file = database_path + ".sql";
@@ -73,6 +73,7 @@ static void loadDatabase(
     else
         database_attach_query = "ATTACH DATABASE " + backQuoteIfNeed(database);
 
+    // 执行加载database的SQL, 并加载数据表
     executeCreateQuery(database_attach_query, context, database, database_metadata_file, thread_pool, force_restore_data);
 }
 

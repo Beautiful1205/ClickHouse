@@ -7,51 +7,50 @@
 #include <IO/WriteBufferFromString.h>
 
 
-namespace DB
-{
+namespace DB {
 
-void ASTFunction::appendColumnNameImpl(WriteBuffer & ostr) const
-{
-    writeString(name, ostr);
+    void ASTFunction::appendColumnNameImpl(WriteBuffer &ostr) const {
+        writeString(name, ostr);
 
-    if (parameters)
-    {
+        if (parameters) {
+            writeChar('(', ostr);
+            for (auto it = parameters->children.begin(); it != parameters->children.end(); ++it) {
+                if (it != parameters->children.begin())
+                    writeCString(", ", ostr);
+                (*it)->appendColumnName(ostr);
+            }
+            writeChar(')', ostr);
+        }
+
         writeChar('(', ostr);
-        for (auto it = parameters->children.begin(); it != parameters->children.end(); ++it)
-        {
-            if (it != parameters->children.begin())
+        for (auto it = arguments->children.begin(); it != arguments->children.end(); ++it) {
+            if (it != arguments->children.begin())
                 writeCString(", ", ostr);
             (*it)->appendColumnName(ostr);
         }
         writeChar(')', ostr);
     }
 
-    writeChar('(', ostr);
-    for (auto it = arguments->children.begin(); it != arguments->children.end(); ++it)
-    {
-        if (it != arguments->children.begin())
-            writeCString(", ", ostr);
-        (*it)->appendColumnName(ostr);
-    }
-    writeChar(')', ostr);
-}
-
 /** Get the text that identifies this element. */
-String ASTFunction::getID(char delim) const
-{
-    return "Function" + (delim + name);
-}
+    String ASTFunction::getID(char delim) const {
+        return "Function" + (delim + name);
+    }
 
-ASTPtr ASTFunction::clone() const
-{
-    auto res = std::make_shared<ASTFunction>(*this);
-    res->children.clear();
+    ASTPtr ASTFunction::clone() const {
+        auto res = std::make_shared<ASTFunction>(*this);
+        res->children.clear();
 
-    if (arguments) { res->arguments = arguments->clone(); res->children.push_back(res->arguments); }
-    if (parameters) { res->parameters = parameters->clone(); res->children.push_back(res->parameters); }
+        if (arguments) {
+            res->arguments = arguments->clone();
+            res->children.push_back(res->arguments);
+        }
+        if (parameters) {
+            res->parameters = parameters->clone();
+            res->children.push_back(res->parameters);
+        }
 
-    return res;
-}
+        return res;
+    }
 
 
 /** A special hack. If it's LIKE or NOT LIKE expression and the right hand side is a string literal,
@@ -61,293 +60,274 @@ ASTPtr ASTFunction::clone() const
   *
   * Another case is regexp match. Suppose the user types match(URL, 'www.yandex.ru'). It often means that the user is unaware that . is a metacharacter.
   */
-static bool highlightStringLiteralWithMetacharacters(const ASTPtr & node, const IAST::FormatSettings & settings, const char * metacharacters)
-{
-    if (const auto * literal = node->as<ASTLiteral>())
-    {
-        if (literal->value.getType() == Field::Types::String)
-        {
-            auto string = applyVisitor(FieldVisitorToString(), literal->value);
+    static bool highlightStringLiteralWithMetacharacters(const ASTPtr &node, const IAST::FormatSettings &settings,
+                                                         const char *metacharacters) {
+        if (const auto *literal = node->as<ASTLiteral>()) {
+            if (literal->value.getType() == Field::Types::String) {
+                auto string = applyVisitor(FieldVisitorToString(), literal->value);
 
-            unsigned escaping = 0;
-            for (auto c : string)
-            {
-                if (c == '\\')
-                {
-                    settings.ostr << c;
-                    if (escaping == 2)
-                        escaping = 0;
-                    ++escaping;
-                }
-                else if (nullptr != strchr(metacharacters, c))
-                {
-                    if (escaping == 2)      /// Properly escaped metacharacter
+                unsigned escaping = 0;
+                for (auto c : string) {
+                    if (c == '\\') {
                         settings.ostr << c;
-                    else                    /// Unescaped metacharacter
-                        settings.ostr << "\033[1;35m" << c << "\033[0m";
-                    escaping = 0;
+                        if (escaping == 2)
+                            escaping = 0;
+                        ++escaping;
+                    } else if (nullptr != strchr(metacharacters, c)) {
+                        if (escaping == 2)      /// Properly escaped metacharacter
+                            settings.ostr << c;
+                        else                    /// Unescaped metacharacter
+                            settings.ostr << "\033[1;35m" << c << "\033[0m";
+                        escaping = 0;
+                    } else {
+                        settings.ostr << c;
+                        escaping = 0;
+                    }
                 }
-                else
-                {
-                    settings.ostr << c;
-                    escaping = 0;
-                }
-            }
 
-            return true;
+                return true;
+            }
         }
+
+        return false;
     }
 
-    return false;
-}
 
+    void ASTFunction::formatImplWithoutAlias(const FormatSettings &settings, FormatState &state,
+                                             FormatStateStacked frame) const {
+        FormatStateStacked nested_need_parens = frame;
+        FormatStateStacked nested_dont_need_parens = frame;
+        nested_need_parens.need_parens = true;
+        nested_dont_need_parens.need_parens = false;
 
-void ASTFunction::formatImplWithoutAlias(const FormatSettings & settings, FormatState & state, FormatStateStacked frame) const
-{
-    FormatStateStacked nested_need_parens = frame;
-    FormatStateStacked nested_dont_need_parens = frame;
-    nested_need_parens.need_parens = true;
-    nested_dont_need_parens.need_parens = false;
+        /// Should this function to be written as operator?
+        bool written = false;
+        if (arguments && !parameters) {
+            if (arguments->children.size() == 1) {
+                const char *operators[] =
+                        {
+                                "negate", "-",
+                                "not", "NOT ",
+                                nullptr
+                        };
 
-    /// Should this function to be written as operator?
-    bool written = false;
-    if (arguments && !parameters)
-    {
-        if (arguments->children.size() == 1)
-        {
-            const char * operators[] =
-            {
-                "negate", "-",
-                "not", "NOT ",
-                nullptr
-            };
+                for (const char **func = operators; *func; func += 2) {
+                    if (0 == strcmp(name.c_str(), func[0])) {
+                        settings.ostr << (settings.hilite ? hilite_operator : "") << func[1]
+                                      << (settings.hilite ? hilite_none : "");
 
-            for (const char ** func = operators; *func; func += 2)
-            {
-                if (0 == strcmp(name.c_str(), func[0]))
-                {
-                    settings.ostr << (settings.hilite ? hilite_operator : "") << func[1] << (settings.hilite ? hilite_none : "");
+                        /** A particularly stupid case. If we have a unary minus before a literal that is a negative number
+                            * "-(-1)" or "- -1", this can not be formatted as `--1`, since this will be interpreted as a comment.
+                            * Instead, add a space.
+                            * PS. You can not just ask to add parentheses - see formatImpl for ASTLiteral.
+                            */
+                        if (name == "negate" && arguments->children[0]->as<ASTLiteral>())
+                            settings.ostr << ' ';
 
-                    /** A particularly stupid case. If we have a unary minus before a literal that is a negative number
-                        * "-(-1)" or "- -1", this can not be formatted as `--1`, since this will be interpreted as a comment.
-                        * Instead, add a space.
-                        * PS. You can not just ask to add parentheses - see formatImpl for ASTLiteral.
-                        */
-                    if (name == "negate" && arguments->children[0]->as<ASTLiteral>())
-                        settings.ostr << ' ';
-
-                    arguments->formatImpl(settings, state, nested_need_parens);
-                    written = true;
-                }
-            }
-        }
-
-        /** need_parens - do we need parentheses around the expression with the operator.
-          * They are needed only if this expression is included in another expression with the operator.
-          */
-
-        if (!written && arguments->children.size() == 2)
-        {
-            const char * operators[] =
-            {
-                "multiply",        " * ",
-                "divide",          " / ",
-                "modulo",          " % ",
-                "plus",            " + ",
-                "minus",           " - ",
-                "notEquals",       " != ",
-                "lessOrEquals",    " <= ",
-                "greaterOrEquals", " >= ",
-                "less",            " < ",
-                "greater",         " > ",
-                "equals",          " = ",
-                "like",            " LIKE ",
-                "notLike",         " NOT LIKE ",
-                "in",              " IN ",
-                "notIn",           " NOT IN ",
-                "globalIn",        " GLOBAL IN ",
-                "globalNotIn",     " GLOBAL NOT IN ",
-                nullptr
-            };
-
-            for (const char ** func = operators; *func; func += 2)
-            {
-                if (0 == strcmp(name.c_str(), func[0]))
-                {
-                    if (frame.need_parens)
-                        settings.ostr << '(';
-                    arguments->children[0]->formatImpl(settings, state, nested_need_parens);
-                    settings.ostr << (settings.hilite ? hilite_operator : "") << func[1] << (settings.hilite ? hilite_none : "");
-
-                    bool special_hilite = settings.hilite
-                        && (name == "like" || name == "notLike")
-                        && highlightStringLiteralWithMetacharacters(arguments->children[1], settings, "%_");
-
-                    /// Format x IN 1 as x IN (1): put parens around rhs even if there is a single element in set.
-                    const auto * second_arg_func = arguments->children[1]->as<ASTFunction>();
-                    const auto * second_arg_literal = arguments->children[1]->as<ASTLiteral>();
-                    bool extra_parents_around_in_rhs = (name == "in" || name == "notIn" || name == "globalIn" || name == "globalNotIn")
-                        && !(second_arg_func && second_arg_func->name == "tuple")
-                        && !(second_arg_literal && second_arg_literal->value.getType() == Field::Types::Tuple)
-                        && !arguments->children[1]->as<ASTSubquery>();
-
-                    if (extra_parents_around_in_rhs)
-                    {
-                        settings.ostr << '(';
-                        arguments->children[1]->formatImpl(settings, state, nested_dont_need_parens);
-                        settings.ostr << ')';
-                    }
-
-                    if (!special_hilite && !extra_parents_around_in_rhs)
-                        arguments->children[1]->formatImpl(settings, state, nested_need_parens);
-
-                    if (frame.need_parens)
-                        settings.ostr << ')';
-                    written = true;
-                }
-            }
-
-            if (!written && 0 == strcmp(name.c_str(), "arrayElement"))
-            {
-                arguments->children[0]->formatImpl(settings, state, nested_need_parens);
-                settings.ostr << (settings.hilite ? hilite_operator : "") << '[' << (settings.hilite ? hilite_none : "");
-                arguments->children[1]->formatImpl(settings, state, nested_need_parens);
-                settings.ostr << (settings.hilite ? hilite_operator : "") << ']' << (settings.hilite ? hilite_none : "");
-                written = true;
-            }
-
-            if (!written && 0 == strcmp(name.c_str(), "tupleElement"))
-            {
-                /// It can be printed in a form of 'x.1' only if right hand side is unsigned integer literal.
-                if (const auto * lit = arguments->children[1]->as<ASTLiteral>())
-                {
-                    if (lit->value.getType() == Field::Types::UInt64)
-                    {
-                        arguments->children[0]->formatImpl(settings, state, nested_need_parens);
-                        settings.ostr << (settings.hilite ? hilite_operator : "") << "." << (settings.hilite ? hilite_none : "");
-                        arguments->children[1]->formatImpl(settings, state, nested_need_parens);
+                        arguments->formatImpl(settings, state, nested_need_parens);
                         written = true;
                     }
                 }
             }
 
-            if (!written && 0 == strcmp(name.c_str(), "lambda"))
-            {
-                /// Special case: one-element tuple in lhs of lambda is printed as its element.
+            /** need_parens - do we need parentheses around the expression with the operator.
+              * They are needed only if this expression is included in another expression with the operator.
+              */
 
-                if (frame.need_parens)
-                    settings.ostr << '(';
+            if (!written && arguments->children.size() == 2) {
+                const char *operators[] =
+                        {
+                                "multiply", " * ",
+                                "divide", " / ",
+                                "modulo", " % ",
+                                "plus", " + ",
+                                "minus", " - ",
+                                "notEquals", " != ",
+                                "lessOrEquals", " <= ",
+                                "greaterOrEquals", " >= ",
+                                "less", " < ",
+                                "greater", " > ",
+                                "equals", " = ",
+                                "like", " LIKE ",
+                                "notLike", " NOT LIKE ",
+                                "in", " IN ",
+                                "notIn", " NOT IN ",
+                                "globalIn", " GLOBAL IN ",
+                                "globalNotIn", " GLOBAL NOT IN ",
+                                nullptr
+                        };
 
-                const auto * first_arg_func = arguments->children[0]->as<ASTFunction>();
-                if (first_arg_func
-                    && first_arg_func->name == "tuple"
-                    && first_arg_func->arguments
-                    && first_arg_func->arguments->children.size() == 1)
-                {
-                    first_arg_func->arguments->children[0]->formatImpl(settings, state, nested_need_parens);
+                for (const char **func = operators; *func; func += 2) {
+                    if (0 == strcmp(name.c_str(), func[0])) {
+                        if (frame.need_parens)
+                            settings.ostr << '(';
+                        arguments->children[0]->formatImpl(settings, state, nested_need_parens);
+                        settings.ostr << (settings.hilite ? hilite_operator : "") << func[1]
+                                      << (settings.hilite ? hilite_none : "");
+
+                        bool special_hilite = settings.hilite
+                                              && (name == "like" || name == "notLike")
+                                              &&
+                                              highlightStringLiteralWithMetacharacters(arguments->children[1], settings,
+                                                                                       "%_");
+
+                        /// Format x IN 1 as x IN (1): put parens around rhs even if there is a single element in set.
+                        const auto *second_arg_func = arguments->children[1]->as<ASTFunction>();
+                        const auto *second_arg_literal = arguments->children[1]->as<ASTLiteral>();
+                        bool extra_parents_around_in_rhs =
+                                (name == "in" || name == "notIn" || name == "globalIn" || name == "globalNotIn")
+                                && !(second_arg_func && second_arg_func->name == "tuple")
+                                && !(second_arg_literal && second_arg_literal->value.getType() == Field::Types::Tuple)
+                                && !arguments->children[1]->as<ASTSubquery>();
+
+                        if (extra_parents_around_in_rhs) {
+                            settings.ostr << '(';
+                            arguments->children[1]->formatImpl(settings, state, nested_dont_need_parens);
+                            settings.ostr << ')';
+                        }
+
+                        if (!special_hilite && !extra_parents_around_in_rhs)
+                            arguments->children[1]->formatImpl(settings, state, nested_need_parens);
+
+                        if (frame.need_parens)
+                            settings.ostr << ')';
+                        written = true;
+                    }
                 }
-                else
+
+                if (!written && 0 == strcmp(name.c_str(), "arrayElement")) {
                     arguments->children[0]->formatImpl(settings, state, nested_need_parens);
+                    settings.ostr << (settings.hilite ? hilite_operator : "") << '['
+                                  << (settings.hilite ? hilite_none : "");
+                    arguments->children[1]->formatImpl(settings, state, nested_need_parens);
+                    settings.ostr << (settings.hilite ? hilite_operator : "") << ']'
+                                  << (settings.hilite ? hilite_none : "");
+                    written = true;
+                }
 
-                settings.ostr << (settings.hilite ? hilite_operator : "") << " -> " << (settings.hilite ? hilite_none : "");
-                arguments->children[1]->formatImpl(settings, state, nested_need_parens);
-                if (frame.need_parens)
-                    settings.ostr << ')';
-                written = true;
-            }
-        }
+                if (!written && 0 == strcmp(name.c_str(), "tupleElement")) {
+                    /// It can be printed in a form of 'x.1' only if right hand side is unsigned integer literal.
+                    if (const auto *lit = arguments->children[1]->as<ASTLiteral>()) {
+                        if (lit->value.getType() == Field::Types::UInt64) {
+                            arguments->children[0]->formatImpl(settings, state, nested_need_parens);
+                            settings.ostr << (settings.hilite ? hilite_operator : "") << "."
+                                          << (settings.hilite ? hilite_none : "");
+                            arguments->children[1]->formatImpl(settings, state, nested_need_parens);
+                            written = true;
+                        }
+                    }
+                }
 
-        if (!written && arguments->children.size() >= 2)
-        {
-            const char * operators[] =
-            {
-                "and", " AND ",
-                "or", " OR ",
-                nullptr
-            };
+                if (!written && 0 == strcmp(name.c_str(), "lambda")) {
+                    /// Special case: one-element tuple in lhs of lambda is printed as its element.
 
-            for (const char ** func = operators; *func; func += 2)
-            {
-                if (0 == strcmp(name.c_str(), func[0]))
-                {
                     if (frame.need_parens)
                         settings.ostr << '(';
-                    for (size_t i = 0; i < arguments->children.size(); ++i)
-                    {
-                        if (i != 0)
-                            settings.ostr << (settings.hilite ? hilite_operator : "") << func[1] << (settings.hilite ? hilite_none : "");
-                        arguments->children[i]->formatImpl(settings, state, nested_need_parens);
-                    }
+
+                    const auto *first_arg_func = arguments->children[0]->as<ASTFunction>();
+                    if (first_arg_func
+                        && first_arg_func->name == "tuple"
+                        && first_arg_func->arguments
+                        && first_arg_func->arguments->children.size() == 1) {
+                        first_arg_func->arguments->children[0]->formatImpl(settings, state, nested_need_parens);
+                    } else
+                        arguments->children[0]->formatImpl(settings, state, nested_need_parens);
+
+                    settings.ostr << (settings.hilite ? hilite_operator : "") << " -> "
+                                  << (settings.hilite ? hilite_none : "");
+                    arguments->children[1]->formatImpl(settings, state, nested_need_parens);
                     if (frame.need_parens)
                         settings.ostr << ')';
                     written = true;
                 }
             }
-        }
 
-        if (!written && 0 == strcmp(name.c_str(), "array"))
-        {
-            settings.ostr << (settings.hilite ? hilite_operator : "") << '[' << (settings.hilite ? hilite_none : "");
-            for (size_t i = 0; i < arguments->children.size(); ++i)
-            {
-                if (i != 0)
-                    settings.ostr << ", ";
-                arguments->children[i]->formatImpl(settings, state, nested_dont_need_parens);
+            if (!written && arguments->children.size() >= 2) {
+                const char *operators[] =
+                        {
+                                "and", " AND ",
+                                "or", " OR ",
+                                nullptr
+                        };
+
+                for (const char **func = operators; *func; func += 2) {
+                    if (0 == strcmp(name.c_str(), func[0])) {
+                        if (frame.need_parens)
+                            settings.ostr << '(';
+                        for (size_t i = 0; i < arguments->children.size(); ++i) {
+                            if (i != 0)
+                                settings.ostr << (settings.hilite ? hilite_operator : "") << func[1]
+                                              << (settings.hilite ? hilite_none : "");
+                            arguments->children[i]->formatImpl(settings, state, nested_need_parens);
+                        }
+                        if (frame.need_parens)
+                            settings.ostr << ')';
+                        written = true;
+                    }
+                }
             }
-            settings.ostr << (settings.hilite ? hilite_operator : "") << ']' << (settings.hilite ? hilite_none : "");
-            written = true;
-        }
 
-        if (!written && arguments->children.size() >= 2 && 0 == strcmp(name.c_str(), "tuple"))
-        {
-            settings.ostr << (settings.hilite ? hilite_operator : "") << '(' << (settings.hilite ? hilite_none : "");
-            for (size_t i = 0; i < arguments->children.size(); ++i)
-            {
-                if (i != 0)
-                    settings.ostr << ", ";
-                arguments->children[i]->formatImpl(settings, state, nested_dont_need_parens);
-            }
-            settings.ostr << (settings.hilite ? hilite_operator : "") << ')' << (settings.hilite ? hilite_none : "");
-            written = true;
-        }
-    }
-
-    if (!written)
-    {
-        settings.ostr << (settings.hilite ? hilite_function : "") << name;
-
-        if (parameters)
-        {
-            settings.ostr << '(' << (settings.hilite ? hilite_none : "");
-            parameters->formatImpl(settings, state, nested_dont_need_parens);
-            settings.ostr << (settings.hilite ? hilite_function : "") << ')';
-        }
-
-        if (arguments)
-        {
-            settings.ostr << '(' << (settings.hilite ? hilite_none : "");
-
-            bool special_hilite_regexp = settings.hilite
-                && (name == "match" || name == "extract" || name == "extractAll" || name == "replaceRegexpOne" || name == "replaceRegexpAll");
-
-            for (size_t i = 0, size = arguments->children.size(); i < size; ++i)
-            {
-                if (i != 0)
-                    settings.ostr << ", ";
-
-                bool special_hilite = false;
-                if (i == 1 && special_hilite_regexp)
-                    special_hilite = highlightStringLiteralWithMetacharacters(arguments->children[i], settings, "|()^$.[]?*+{:-");
-
-                if (!special_hilite)
+            if (!written && 0 == strcmp(name.c_str(), "array")) {
+                settings.ostr << (settings.hilite ? hilite_operator : "") << '['
+                              << (settings.hilite ? hilite_none : "");
+                for (size_t i = 0; i < arguments->children.size(); ++i) {
+                    if (i != 0)
+                        settings.ostr << ", ";
                     arguments->children[i]->formatImpl(settings, state, nested_dont_need_parens);
+                }
+                settings.ostr << (settings.hilite ? hilite_operator : "") << ']'
+                              << (settings.hilite ? hilite_none : "");
+                written = true;
             }
 
-            settings.ostr << (settings.hilite ? hilite_function : "") << ')';
+            if (!written && arguments->children.size() >= 2 && 0 == strcmp(name.c_str(), "tuple")) {
+                settings.ostr << (settings.hilite ? hilite_operator : "") << '('
+                              << (settings.hilite ? hilite_none : "");
+                for (size_t i = 0; i < arguments->children.size(); ++i) {
+                    if (i != 0)
+                        settings.ostr << ", ";
+                    arguments->children[i]->formatImpl(settings, state, nested_dont_need_parens);
+                }
+                settings.ostr << (settings.hilite ? hilite_operator : "") << ')'
+                              << (settings.hilite ? hilite_none : "");
+                written = true;
+            }
         }
 
-        settings.ostr << (settings.hilite ? hilite_none : "");
+        if (!written) {
+            settings.ostr << (settings.hilite ? hilite_function : "") << name;
+
+            if (parameters) {
+                settings.ostr << '(' << (settings.hilite ? hilite_none : "");
+                parameters->formatImpl(settings, state, nested_dont_need_parens);
+                settings.ostr << (settings.hilite ? hilite_function : "") << ')';
+            }
+
+            if (arguments) {
+                settings.ostr << '(' << (settings.hilite ? hilite_none : "");
+
+                bool special_hilite_regexp = settings.hilite
+                                             && (name == "match" || name == "extract" || name == "extractAll" ||
+                                                 name == "replaceRegexpOne" || name == "replaceRegexpAll");
+
+                for (size_t i = 0, size = arguments->children.size(); i < size; ++i) {
+                    if (i != 0)
+                        settings.ostr << ", ";
+
+                    bool special_hilite = false;
+                    if (i == 1 && special_hilite_regexp)
+                        special_hilite = highlightStringLiteralWithMetacharacters(arguments->children[i], settings,
+                                                                                  "|()^$.[]?*+{:-");
+
+                    if (!special_hilite)
+                        arguments->children[i]->formatImpl(settings, state, nested_dont_need_parens);
+                }
+
+                settings.ostr << (settings.hilite ? hilite_function : "") << ')';
+            }
+
+            settings.ostr << (settings.hilite ? hilite_none : "");
+        }
     }
-}
 
 }

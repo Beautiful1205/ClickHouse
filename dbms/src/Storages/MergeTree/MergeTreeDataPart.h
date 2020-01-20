@@ -27,8 +27,8 @@ class MergeTreeData;
 /// Description of the data part.
 struct MergeTreeDataPart
 {
-    using Checksums = MergeTreeDataPartChecksums;
-    using Checksum = MergeTreeDataPartChecksums::Checksum;
+    using Checksums = MergeTreeDataPartChecksums;//map类型, 保存part中所有文件的校验和.(map内部元素是有序的)
+    using Checksum = MergeTreeDataPartChecksums::Checksum;//一个文件的校验和
 
     MergeTreeDataPart(const MergeTreeData & storage_, const String & name_, const MergeTreePartInfo & info_);
 

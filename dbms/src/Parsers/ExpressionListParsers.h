@@ -33,13 +33,13 @@ private:
 };
 
 
-/** An expression with an infix binary left-associative operator.
+/** An expression with an infix binary left-associative operator.  左结合的二元中缀表达式
   * For example, a + b - c + d.
   */
 class ParserLeftAssociativeBinaryOperatorList : public IParserBase
 {
 private:
-    Operators_t operators;
+    Operators_t operators;//保存着允许的运算符及其相应的函数, 各种操作符是代码里写好的, 见.cpp文件
     ParserPtr first_elem_parser;
     ParserPtr remaining_elem_parser;
 
@@ -65,8 +65,9 @@ protected:
 };
 
 
-/** Expression with an infix operator of arbitrary arity.
-  * For example, a AND b AND c AND d.
+/** Expression with an infix operator of arbitrary arity.  中缀表达式, 可以有任意数量个参数
+  * For example, a AND b AND c AND d.                      举例1: a AND b AND c AND ....
+  *                                                        举例2: a OR b OR c OR ....
   */
 class ParserVariableArityOperatorList : public IParserBase
 {
@@ -88,7 +89,7 @@ protected:
 };
 
 
-/** An expression with a prefix unary operator.
+/** An expression with a prefix unary operator.一元前缀表达式
   * Example, NOT x.
   */
 class ParserPrefixUnaryOperatorExpression : public IParserBase
@@ -178,7 +179,7 @@ protected:
 class ParserAdditiveExpression : public IParserBase
 {
 private:
-    static const char * operators[];
+    static const char * operators[];//类静态常量, .cpp文件中有其具体的内容
     ParserLeftAssociativeBinaryOperatorList operator_parser {operators, std::make_unique<ParserIntervalOperatorExpression>()};
 
 protected:
@@ -205,7 +206,7 @@ protected:
 };
 
 
-class ParserBetweenExpression : public IParserBase
+class ParserBetweenExpression : public IParserBase//BETWEEN AND运算符
 {
 private:
     ParserConcatExpression elem_parser;
@@ -220,7 +221,7 @@ protected:
 class ParserComparisonExpression : public IParserBase
 {
 private:
-    static const char * operators[];
+    static const char * operators[];//类静态常量, .cpp文件中有其具体的内容
     ParserLeftAssociativeBinaryOperatorList operator_parser {operators, std::make_unique<ParserBetweenExpression>()};
 
 protected:
@@ -235,7 +236,7 @@ protected:
 
 /** Parser for nullity checking with IS (NOT) NULL.
   */
-class ParserNullityChecking : public IParserBase
+class ParserNullityChecking : public IParserBase//是否为NULL
 {
 protected:
     const char * getName() const override { return "nullity checking"; }
@@ -243,10 +244,10 @@ protected:
 };
 
 
-class ParserLogicalNotExpression : public IParserBase
+class ParserLogicalNotExpression : public IParserBase//逻辑NOT运算符
 {
 private:
-    static const char * operators[];
+    static const char * operators[];//类静态常量, .cpp文件中有其具体的内容
     ParserPrefixUnaryOperatorExpression operator_parser {operators, std::make_unique<ParserNullityChecking>()};
 
 protected:
@@ -259,7 +260,7 @@ protected:
 };
 
 
-class ParserLogicalAndExpression : public IParserBase
+class ParserLogicalAndExpression : public IParserBase//逻辑AND运算符
 {
 private:
     ParserVariableArityOperatorList operator_parser {"AND", "and", std::make_unique<ParserLogicalNotExpression>()};
@@ -274,7 +275,7 @@ protected:
 };
 
 
-class ParserLogicalOrExpression : public IParserBase
+class ParserLogicalOrExpression : public IParserBase//逻辑OR运算符
 {
 private:
     ParserVariableArityOperatorList operator_parser {"OR", "or", std::make_unique<ParserLogicalAndExpression>()};
@@ -304,10 +305,10 @@ protected:
 };
 
 
-class ParserLambdaExpression : public IParserBase
+class ParserLambdaExpression : public IParserBase//LambdaExpression Lambda表达式
 {
 private:
-    ParserTernaryOperatorExpression elem_parser;
+    ParserTernaryOperatorExpression elem_parser;//TernaryOperatorExpression 三元表达式
 
 protected:
     const char * getName() const { return "lambda expression"; }
@@ -322,7 +323,7 @@ using ParserExpression = ParserLambdaExpression;
 class ParserExpressionWithOptionalAlias : public IParserBase
 {
 public:
-    ParserExpressionWithOptionalAlias(bool allow_alias_without_as_keyword, bool prefer_alias_to_column_name_ = false);
+    ParserExpressionWithOptionalAlias(bool allow_alias_without_as_keyword/*是否允许指定别名时不使用AS关键字*/, bool prefer_alias_to_column_name_ = false/*是否更喜欢别名而不是列名*/);
 protected:
     ParserPtr impl;
 

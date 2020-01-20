@@ -19,8 +19,8 @@ static String serializeToString(const DataTypeCustomSimpleTextSerialization & do
 
 static void deserializeFromString(const DataTypeCustomSimpleTextSerialization & domain, IColumn & column, const String & s, const FormatSettings & settings)
 {
-    ReadBufferFromString istr(s);
-    domain.deserializeText(column, istr, settings);
+    ReadBufferFromString istr(s);//把数据从str中读取到buffer中
+    domain.deserializeText(column, istr, settings);// IPV4/IPV6反序列化
 }
 
 } // namespace
@@ -40,8 +40,8 @@ void DataTypeCustomSimpleTextSerialization::serializeTextEscaped(const IColumn &
 void DataTypeCustomSimpleTextSerialization::deserializeTextEscaped(IColumn & column, ReadBuffer & istr, const FormatSettings & settings) const
 {
     String str;
-    readEscapedString(str, istr);
-    deserializeFromString(*this, column, str, settings);
+    readEscapedString(str, istr);//读取转义字符穿序列, 将数据从buffer保存到str中
+    deserializeFromString(*this, column, str, settings);//将数据从str中反序列化到column中
 }
 
 void DataTypeCustomSimpleTextSerialization::serializeTextQuoted(const IColumn & column, size_t row_num, WriteBuffer & ostr, const FormatSettings & settings) const

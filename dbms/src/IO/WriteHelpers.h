@@ -70,7 +70,10 @@ inline void writeFloatBinary(const T & x, WriteBuffer & buf)
 
 inline void writeStringBinary(const std::string & s, WriteBuffer & buf)
 {
+    //向Buffer中写入字符串
+    //1-先写入该字符串的长度s.size()
     writeVarUInt(s.size(), buf);
+    //2-再将字符串写入
     buf.write(s.data(), s.size());
 }
 

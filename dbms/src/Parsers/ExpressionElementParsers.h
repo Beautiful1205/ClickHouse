@@ -27,7 +27,7 @@ protected:
 };
 
 
-/** The SELECT subquery is in parenthesis.
+/** The SELECT subquery is in parenthesis圆括号. SELECT子查询在圆括号内
   */
 class ParserSubquery : public IParserBase
 {

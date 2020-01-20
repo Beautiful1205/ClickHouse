@@ -15,48 +15,43 @@
   */
 
 
-namespace DB
-{
+namespace DB {
 
-class Server : public BaseDaemon, public IServer
-{
-public:
-    using ServerApplication::run;
+    class Server : public BaseDaemon, public IServer {
+    public:
+        using ServerApplication::run;
 
-    Poco::Util::LayeredConfiguration & config() const override
-    {
-        return BaseDaemon::config();
-    }
+        Poco::Util::LayeredConfiguration &config() const override {
+            return BaseDaemon::config();
+        }
 
-    Poco::Logger & logger() const override
-    {
-        return BaseDaemon::logger();
-    }
+        Poco::Logger &logger() const override {
+            return BaseDaemon::logger();
+        }
 
-    Context & context() const override
-    {
-        return *global_context;
-    }
+        Context &context() const override {
+            return *global_context;
+        }
 
-    bool isCancelled() const override
-    {
-        return BaseDaemon::isCancelled();
-    }
+        bool isCancelled() const override {
+            return BaseDaemon::isCancelled();
+        }
 
-    void defineOptions(Poco::Util::OptionSet & _options) override;
-protected:
-    int run() override;
+        void defineOptions(Poco::Util::OptionSet &_options) override;
 
-    void initialize(Application & self) override;
+    protected:
+        int run() override;
 
-    void uninitialize() override;
+        void initialize(Application &self) override;
 
-    int main(const std::vector<std::string> & args) override;
+        void uninitialize() override;
 
-    std::string getDefaultCorePath() const override;
+        int main(const std::vector<std::string> &args) override;
 
-private:
-    std::unique_ptr<Context> global_context;
-};
+        std::string getDefaultCorePath() const override;
+
+    private:
+        std::unique_ptr<Context> global_context;
+    };
 
 }

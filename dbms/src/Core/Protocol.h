@@ -3,10 +3,9 @@
 #include <Core/Types.h>
 
 
-namespace DB
-{
+namespace DB {
 
-
+//客户端-服务器协议
 /// Client-server protocol.
 ///
 /// Client opens a connection and sends Hello packet.
@@ -52,92 +51,83 @@ namespace DB
 /// Using this block the client can initialise the output formatter and display the prefix of resulting table
 /// beforehand.
 
-namespace Protocol
-{
-    /// Packet types that server transmits.
-    namespace Server
-    {
-        enum Enum
-        {
-            Hello = 0,                /// Name, version, revision.
-            Data = 1,                 /// A block of data (compressed or not).
-            Exception = 2,            /// The exception during query execution.
-            Progress = 3,             /// Query execution progress: rows read, bytes read.
-            Pong = 4,                 /// Ping response
-            EndOfStream = 5,          /// All packets were transmitted
-            ProfileInfo = 6,          /// Packet with profiling info.
-            Totals = 7,               /// A block with totals (compressed or not).
-            Extremes = 8,             /// A block with minimums and maximums (compressed or not).
-            TablesStatusResponse = 9, /// A response to TablesStatus request.
-            Log = 10,                 /// System logs of the query execution
-            TableColumns = 11,        /// Columns' description for default values calculation
-        };
+    namespace Protocol {
+        /// Packet types that server transmits.
+        namespace Server {
+            enum Enum {
+                Hello = 0,                /// Name, version, revision.
+                Data = 1,                 /// A block of data (compressed or not).
+                Exception = 2,            /// The exception during query execution.
+                Progress = 3,             /// Query execution progress: rows read, bytes read.
+                Pong = 4,                 /// Ping response
+                EndOfStream = 5,          /// All packets were transmitted
+                ProfileInfo = 6,          /// Packet with profiling info.  包含分析信息的数据包
+                Totals = 7,               /// A block with totals (compressed or not).
+                Extremes = 8,             /// A block with minimums and maximums (compressed or not).
+                TablesStatusResponse = 9, /// A response to TablesStatus request.
+                Log = 10,                 /// System logs of the query execution
+                TableColumns = 11,        /// Columns' description for default values calculation
+            };
 
-        /// NOTE: If the type of packet argument would be Enum, the comparison packet >= 0 && packet < 10
-        /// would always be true because of compiler optimisation. That would lead to out-of-bounds error
-        /// if the packet is invalid.
-        /// See https://www.securecoding.cert.org/confluence/display/cplusplus/INT36-CPP.+Do+not+use+out-of-range+enumeration+values
-        inline const char * toString(UInt64 packet)
-        {
-            static const char * data[] = { "Hello", "Data", "Exception", "Progress", "Pong", "EndOfStream", "ProfileInfo", "Totals",
-                "Extremes", "TablesStatusResponse", "Log", "TableColumns" };
-            return packet < 12
-                ? data[packet]
-                : "Unknown packet";
-        }
-
-        inline size_t stringsInMessage(UInt64 msg_type)
-        {
-            switch (msg_type)
-            {
-                case TableColumns:
-                    return 2;
-                default:
-                    break;
+            /// NOTE: If the type of packet argument would be Enum, the comparison packet >= 0 && packet < 10
+            /// would always be true because of compiler optimisation. That would lead to out-of-bounds error
+            /// if the packet is invalid.
+            /// See https://www.securecoding.cert.org/confluence/display/cplusplus/INT36-CPP.+Do+not+use+out-of-range+enumeration+values
+            inline const char *toString(UInt64 packet) {
+                static const char *data[] = {"Hello", "Data", "Exception", "Progress", "Pong", "EndOfStream",
+                                             "ProfileInfo", "Totals",
+                                             "Extremes", "TablesStatusResponse", "Log", "TableColumns"};
+                return packet < 12
+                       ? data[packet]
+                       : "Unknown packet";
             }
-            return 0;
-        }
-    }
 
-    /// Packet types that client transmits.
-    namespace Client
-    {
-        enum Enum
-        {
-            Hello = 0,               /// Name, version, revision, default DB
-            Query = 1,               /// Query id, query settings, stage up to which the query must be executed,
-                                     /// whether the compression must be used,
-                                     /// query text (without data for INSERTs).
-            Data = 2,                /// A block of data (compressed or not).
-            Cancel = 3,              /// Cancel the query execution.
-            Ping = 4,                /// Check that connection to the server is alive.
-            TablesStatusRequest = 5, /// Check status of tables on the server.
-            KeepAlive = 6            /// Keep the connection alive
+            inline size_t stringsInMessage(UInt64 msg_type) {
+                switch (msg_type) {
+                    case TableColumns:
+                        return 2;
+                    default:
+                        break;
+                }
+                return 0;
+            }
+        }
+
+        /// Packet types that client transmits.
+        namespace Client {
+            enum Enum {
+                Hello = 0,               /// Name, version, revision, default DB
+                Query = 1,               /// Query id, query settings, stage up to which the query must be executed,
+                /// whether the compression must be used,
+                /// query text (without data for INSERTs).
+                        Data = 2,                /// A block of data (compressed or not).
+                Cancel = 3,              /// Cancel the query execution.
+                Ping = 4,                /// Check that connection to the server is alive.
+                TablesStatusRequest = 5, /// Check status of tables on the server.
+                KeepAlive = 6            /// Keep the connection alive
+            };
+
+            inline const char *toString(UInt64 packet) {
+                static const char *data[] = {"Hello", "Query", "Data", "Cancel", "Ping", "TablesStatusRequest",
+                                             "KeepAlive"};
+                return packet < 7
+                       ? data[packet]
+                       : "Unknown packet";
+            }
+        }
+
+        /// Whether the compression must be used.
+        enum class Compression {
+            Disable = 0,
+            Enable = 1,
         };
 
-        inline const char * toString(UInt64 packet)
-        {
-            static const char * data[] = { "Hello", "Query", "Data", "Cancel", "Ping", "TablesStatusRequest", "KeepAlive" };
-            return packet < 7
-                ? data[packet]
-                : "Unknown packet";
-        }
+        /// Whether the ssl must be used.
+        enum class Secure {
+            Disable = 0,
+            Enable = 1,
+        };
+
     }
-
-    /// Whether the compression must be used.
-    enum class Compression
-    {
-        Disable = 0,
-        Enable = 1,
-    };
-
-    /// Whether the ssl must be used.
-    enum class Secure
-    {
-        Disable = 0,
-        Enable = 1,
-    };
-
-}
 
 }

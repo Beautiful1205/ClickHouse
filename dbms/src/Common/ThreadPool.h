@@ -197,6 +197,7 @@ private:
 
 
 /// Recommended thread pool for the case when multiple thread pools are created and destroyed.
+// 建议在创建和销毁多个线程时使用线程池。
 using ThreadPool = ThreadPoolImpl<ThreadFromGlobalPool>;
 
 

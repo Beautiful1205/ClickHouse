@@ -219,9 +219,11 @@ void HTTPHandler::processQuery(
 
     std::istream & istr = request.stream();
 
-    /// Part of the query can be passed in the 'query' parameter and the rest in the request body
-    /// (http method need not necessarily be POST). In this case the entire query consists of the
-    /// contents of the 'query' parameter, a line break and the request body.
+    /// Part of the query can be passed in the 'query' parameter and
+    /// the rest in the request body (http method need not necessarily be POST).
+    /// In this case the entire query consists of the contents of the 'query' parameter,
+    /// a line break and the request body.
+    //SQL和数据可以分别放在'query'参数和请求体中, 且http方法可以不是POST方法
     std::string query_param = params.get("query", "");
     if (!query_param.empty())
         query_param += '\n';
@@ -609,6 +611,7 @@ void HTTPHandler::processQuery(
 
     customizeContext(context);
 
+    //重点方法, 执行SQL
     executeQuery(*in, *used_output.out_maybe_delayed_and_compressed, /* allow_into_outfile = */ false, context,
         [&response] (const String & content_type) { response.setContentType(content_type); },
         [&response] (const String & current_query_id) { response.add("X-ClickHouse-Query-Id", current_query_id); });

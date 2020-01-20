@@ -13,6 +13,9 @@ namespace DB
   *
   * While using this object, no other allocations in arena are possible.
   */
+/** 将数据连续写入Arena. 由于Arena位于连续的内存段中, 因此可以使用ReadBufferFromMemory将其读回。
+  * 使用此对象时, 不能再次对Arena进行其他分配
+  */
 class WriteBufferFromArena : public WriteBuffer
 {
 private:

@@ -14,6 +14,9 @@ class MarkCache;
 
 
 /// Base class for MergeTreeThreadSelectBlockInputStream and MergeTreeSelectBlockInputStream
+//  如果需要只需要从一个part中读取数据, 将使用MergeTreeSelectBlockInputStream
+//  如果需要从多个part中读取数据, 将使用MergeTreeThreadSelectBlockInputStream
+//NOTE: MergeTreeThreadSelectBlockInputStream和MergeTreeSelectBlockInputStream都是继承了MergeTreeBaseSelectBlockInputStream中的readImpl()方法
 class MergeTreeBaseSelectBlockInputStream : public IBlockInputStream
 {
 public:
@@ -34,7 +37,7 @@ public:
     static void executePrewhereActions(Block & block, const PrewhereInfoPtr & prewhere_info);
 
 protected:
-    Block readImpl() final;
+    Block readImpl() final;//final表示这个方法不能被子类重写
 
     /// Creates new this->task, and initilizes readers
     virtual bool getNewTask() = 0;

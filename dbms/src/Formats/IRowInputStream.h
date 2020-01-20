@@ -26,6 +26,7 @@ public:
     /** Read next row and append it to the columns.
       * If no more rows - return false.
       */
+    //读取下一行并将其追加在columns中. 如果没有下一行了, 返回false
     virtual bool read(MutableColumns & columns, RowReadExtension & extra) = 0;
 
     virtual void readPrefix() {}                /// delimiter before begin of result

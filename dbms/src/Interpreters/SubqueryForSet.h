@@ -16,9 +16,11 @@ struct JoinedColumn;
 
 
 /// Information on what to do when executing a subquery in the [GLOBAL] IN/JOIN section.
+// [GLOBAL] IN/JOIN 这部分需要的子查询的信息
 struct SubqueryForSet
 {
     /// The source is obtained using the InterpreterSelectQuery subquery.
+    //source是由InterpreterSelectQuery子查询得来的
     BlockInputStreamPtr source;
 
     /// If set, build it from result.

@@ -44,7 +44,10 @@ std::string toString(const ColumnDefaultKind kind)
     };
 
     const auto it = map.find(kind);
-    return it != std::end(map) ? it->second : throw Exception{"Invalid ColumnDefaultKind", ErrorCodes::LOGICAL_ERROR};
+    if (it != std::end(map))
+        return it->second;
+
+    throw Exception{"Invalid ColumnDefaultKind", ErrorCodes::LOGICAL_ERROR};
 }
 
 
