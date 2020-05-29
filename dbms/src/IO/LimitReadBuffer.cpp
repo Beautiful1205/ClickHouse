@@ -10,7 +10,7 @@ namespace ErrorCodes
     extern const int LIMIT_EXCEEDED;
 }
 
-
+//从另一个ReadBuffer读取不超过指定字节数的数据
 bool LimitReadBuffer::nextImpl()
 {
     /// Let underlying buffer calculate read bytes in `next()` call.

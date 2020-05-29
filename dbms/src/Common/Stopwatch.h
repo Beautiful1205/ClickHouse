@@ -36,7 +36,7 @@ public:
     UInt64 elapsedNanoseconds() const  { return is_running ? nanoseconds() - start_ns : stop_ns - start_ns; }
     UInt64 elapsedMicroseconds() const { return elapsedNanoseconds() / 1000U; }
     UInt64 elapsedMilliseconds() const { return elapsedNanoseconds() / 1000000UL; }
-    double elapsedSeconds() const      { return static_cast<double>(elapsedNanoseconds()) / 1000000000ULL; }
+    double elapsedSeconds() const      { return static_cast<double>(elapsedNanoseconds()) / 1000000000ULL; } //1秒 = 10亿纳秒 //Unsiged Long Long 类型（ULL）
 
 private:
     UInt64 start_ns = 0;

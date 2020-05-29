@@ -6,7 +6,8 @@
 namespace DB
 {
 
-/** List of zero, single or multiple JOIN-ed tables or subqueries in SELECT query, with ARRAY JOINs and SAMPLE, FINAL modifiers.
+/** List of zero, single or multiple JOIN-ed tables or subqueries in SELECT query,
+  * with ARRAY JOINs and SAMPLE, FINAL modifiers.
   *
   * Table expression is:
   *  [database_name.]table_name
@@ -65,8 +66,11 @@ struct ASTTableJoin : public IAST
     /// Algorithm for distributed query processing.
     enum class Locality
     {
+        // (默认)未指定
         Unspecified,
+        // 仅使用同一台服务器上可用的数据进行JOIN
         Local,    /// Perform JOIN, using only data available on same servers (co-located data).
+        // 从远程服务器收集和合并数据, 并将其广播到每个服务器进行JOIN
         Global    /// Collect and merge data from remote servers, and broadcast it to each server.
     };
 
@@ -137,6 +141,8 @@ struct ASTArrayJoin : public IAST
 
 
 /// Element of list.
+//情况1: SELECT ... FROM tbl1 JOIN tbl2 ...
+//情况2: SELECT ... FROM tbl1 ARRAY JOIN col1 ...
 struct ASTTablesInSelectQueryElement : public IAST
 {
     /** For first element of list, either table_expression or array_join element could be non-nullptr.

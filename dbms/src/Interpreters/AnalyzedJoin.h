@@ -37,7 +37,7 @@ using JoinedColumnsList = std::list<JoinedColumn>;
 
 struct AnalyzedJoin
 {
-
+    //每个QUERY只支持一个JOIN子句
     /// NOTE: So far, only one JOIN per query is supported.
 
     /** Query of the form `SELECT expr(x) AS k FROM t1 ANY LEFT JOIN (SELECT expr(x) AS k FROM t2) USING k`
@@ -47,8 +47,11 @@ struct AnalyzedJoin
       *  - in the "left" table, it will be accessible by the name `expr(x)`, since `Project` action has not been executed yet.
       * You must remember both of these options.
       *
+      * 根据k进行t1和t2之间的JOIN.
+      * JOIN 过程中, 右表已经完成了Project操作, 因此可以使用别名k; 左表还没有进行Project操作, 需要使用expr(x)
+      *
       * Query of the form `SELECT ... from t1 ANY LEFT JOIN (SELECT ... from t2) ON expr(t1 columns) = expr(t2 columns)`
-      *     to the subquery will be added expression `expr(t2 columns)`.
+      *     to the subquery will be added expression `expr(t2 columns)`.  子查询中将添加expr(t2 columns)
       * It's possible to use name `expr(t2 columns)`.
       */
     Names key_names_left;

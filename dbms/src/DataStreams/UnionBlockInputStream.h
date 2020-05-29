@@ -59,7 +59,7 @@ public:
         {
             Block header = children.at(0)->getHeader();
             for (size_t i = 1; i < num_children; ++i)
-                assertBlocksHaveEqualStructure(children[i]->getHeader(), header, "UNION");
+                assertBlocksHaveEqualStructure(children[i]->getHeader(), header, "UNION");//确保能够UNION起来的流的数据结构一致
         }
     }
 

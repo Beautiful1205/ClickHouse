@@ -163,7 +163,7 @@ namespace DB {
         /// More old server versions cannot execute the query above.
         static constexpr int MIN_SERVER_REVISION = 54406;
 
-        void load(const ConnectionParameters &connection_parameters, size_t suggestion_limit) {
+        void load(const ConnectionParameters &connection_parameters, int suggestion_limit) {
             loading_thread = std::thread([connection_parameters, suggestion_limit, this] {
                 try {
                     Connection connection(
@@ -177,7 +177,7 @@ namespace DB {
                             connection_parameters.compression,
                             connection_parameters.security);
 
-                    loadImpl(connection, suggestion_limit);
+                    loadImpl(connection, suggestion_limit);//补充Words中的提示内容
                 }
                 catch (...) {
                     std::cerr << "Cannot load data for command line suggestions: "

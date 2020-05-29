@@ -32,8 +32,7 @@ namespace DB {
         if (column_elem.column)
             constant_filter_description = ConstantFilterDescription(*column_elem.column);
 
-        if (!constant_filter_description.always_false
-            && !constant_filter_description.always_true) {
+        if (!constant_filter_description.always_false && !constant_filter_description.always_true) {
             /// Replace the filter column to a constant with value 1.
             FilterDescription filter_description_check(*column_elem.column);
             column_elem.column = column_elem.type->createColumnConst(header.rows(), 1u);
@@ -68,14 +67,15 @@ namespace DB {
             return removeFilterIfNeed(std::move(res));
 
         /// Until non-empty block after filtering or end of stream.
-        while (1) {
+        while (1) {//一直循环直到过滤后得到非空的block 或者 流的末尾
             res = children.back()->read();
             if (!res)
                 return res;
 
+            //对这个Block执行一系列的action操作, 对Block的具体的操作在这一步完成
             expression->execute(res);
 
-            if (constant_filter_description.always_true)
+            if (constant_filter_description.always_true)//过滤的列是常量列且过滤结果始终为true
                 return removeFilterIfNeed(std::move(res));
 
             size_t columns = res.columns();//当前的Block中共有多少列
@@ -86,6 +86,8 @@ namespace DB {
                 * This happens if the function returns a constant for a non-constant argument.
                 * For example, `ignore` function.
                 */
+            // 实际中可能存在这样一种情况: 针对同一个Block, 在analysis of expressions阶段, 常量列还没有计算出来, 现在才计算出来.
+            // 如果函数入参为非常量, 但结果为常量, 则会发生这种情况. 例如“ignore”函数
             constant_filter_description = ConstantFilterDescription(*column);
 
             if (constant_filter_description.always_false) {
@@ -147,7 +149,7 @@ namespace DB {
                     /// Example:
                     ///  SELECT materialize(100) AS x WHERE x
                     /// will work incorrectly.
-                    //需要过滤的列被替换为带有常量列(常量=1), 因为在过滤之后, 将不会保留其他任何内容。
+                    //需要过滤的列被替换为常量列(常量=1), 因为在过滤之后, 将不会保留其他任何内容。
                     //注意: 需要向过滤器传递非0和非1的列作为参数
                     current_column.column = current_column.type->createColumnConst(filtered_rows, 1u);
                     continue;

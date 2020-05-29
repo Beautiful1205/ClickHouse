@@ -93,7 +93,7 @@ void ExecuteScalarSubqueriesMatcher::visit(const ASTSubquery & subquery, ASTPtr 
             return;
         }
 
-        if (block.rows() != 1 || res.in->read())
+        if (block.rows() != 1 || res.in->read())//标量子查询不能返回多行
             throw Exception("Scalar subquery returned more than one row", ErrorCodes::INCORRECT_RESULT_OF_SCALAR_SUBQUERY);
     }
     catch (const Exception & e)

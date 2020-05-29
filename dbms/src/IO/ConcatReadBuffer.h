@@ -9,6 +9,7 @@ namespace DB
 {
 
 /** Reads from the concatenation of multiple ReadBuffers
+  * 串行读取多个ReadBuffers
   */
 class ConcatReadBuffer : public ReadBuffer
 {

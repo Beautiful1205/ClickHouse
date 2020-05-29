@@ -16,9 +16,11 @@ PushingToViewsBlockOutputStream::PushingToViewsBlockOutputStream(
     const Context & context_, const ASTPtr & query_ptr_, bool no_destination)
     : storage(storage_), context(context_), query_ptr(query_ptr_)
 {
-    /** TODO This is a very important line. At any insertion into the table one of streams should own lock.
-      * Although now any insertion into the table is done via PushingToViewsBlockOutputStream,
-      *  but it's clear that here is not the best place for this functionality.
+    /** TODO
+      * This is a very important line. At any insertion into the table one of streams should own lock.
+      * Although now any insertion into the table is done via PushingToViewsBlockOutputStream, but it's clear that here is not the best place for this functionality.
+      *  在数据插入过程中, 对表结构加锁, 其中一个stream应该占有该锁, 以保证表结构不变(貌似别的线程也不能改变表中的数据).
+      *  尽管现在所有的insert操作都是通过PushingToViewsBlockOutputStream完成的, 但是很明显这不是最佳的方法
       */
     addTableLock(storage->lockStructureForShare(true, context.getCurrentQueryId()));
 
@@ -31,6 +33,7 @@ PushingToViewsBlockOutputStream::PushingToViewsBlockOutputStream(
         Dependencies dependencies = context.getDependencies(database, table);
 
         /// We need special context for materialized views insertions
+        //如果需要向物化试图中插入数据, 需要创建新的上下文context
         if (!dependencies.empty())
         {
             views_context = std::make_unique<Context>(context);
@@ -54,9 +57,13 @@ PushingToViewsBlockOutputStream::PushingToViewsBlockOutputStream(
         }
     }
 
+    //代码执行到这里, 已经把数据写到了view中, 接下来判断是否需要把数据写到表中
+    //no_destination = false, 表示需要insert数据到表中, 执行这里的逻辑
+    //no_destination = true, 表示不需要insert数据到表中, 不执行这里的逻辑
     /* Do not push to destination table if the flag is set */
     if (!no_destination)
     {
+
         output = storage->write(query_ptr, context);
         replicated_output = dynamic_cast<ReplicatedMergeTreeBlockOutputStream *>(output.get());
     }

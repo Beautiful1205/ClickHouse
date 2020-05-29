@@ -12,7 +12,7 @@ namespace DB {
     struct DatabaseAndTableWithAlias;
 
 
-/// Identifier (column, table or alias)
+    /// Identifier (column, table or alias)  针对 列名/表名/别名 的AST节点
     class ASTIdentifier : public ASTWithAlias {
     public:
         /// The composite identifier will have a concatenated name (of the form a.b.c),

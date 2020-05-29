@@ -23,6 +23,7 @@ namespace DB {
   */
 
 /** 创建一个异步的BlockInputStream.
+  *
   * 在另外一个单独的线程中执行BlockInputStream, 有两个目的:
   * 1-允许查询执行管道的不同阶段能够并行工作;
   * 2-可以不用一直等待, 直到数据准备就绪. 可以定期检查数据的准备状态而不必一直阻塞.
@@ -62,6 +63,13 @@ namespace DB {
           * Start receiving data if necessary.
           * If the function returned true - the data is ready and you can do `read()`;
           * You can not call the function just at the same moment again.
+          *
+          * 等待数据准备就绪（等待事件发出信号. 如果事件在指定的时间间隔内发出信号, 则返回true; 否则返回false）
+          * 如果该时间大于指定的超时时间, 当前线程返回false, 不接收数据。
+          * 如果该时间小于指定的超时时间, 当前线程返回true, 开始接收数据。
+          *
+          * 如果poll()函数返回true, 表示数据已准备好, 您可以执行read()方法.
+          * 不能在同一时刻再次调用函数
           */
         bool poll(UInt64 milliseconds) {
             if (!started) {
@@ -69,6 +77,8 @@ namespace DB {
                 started = true;
             }
 
+            // 调用tryWait()阻塞当前线程milliseconds.
+            // 等待事件发出信号. 如果事件在指定的时间间隔内发出信号, 则返回true; 否则返回false
             return ready.tryWait(milliseconds);
         }
 

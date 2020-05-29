@@ -39,9 +39,8 @@ using FilterInfoPtr = std::shared_ptr<FilterInfo>;
 struct SyntaxAnalyzerResult;
 using SyntaxAnalyzerResultPtr = std::shared_ptr<const SyntaxAnalyzerResult>;
 
-/** Query along with some additional data,
-  *  that can be used during query processing
-  *  inside storage engines.
+/** Query along with some additional data, that can be used during query processing inside storage engines.
+  * 可以在存储引擎内的查询处理期间使用到的信息, 包括query和一些其他的附加数据
   */
 struct SelectQueryInfo
 {

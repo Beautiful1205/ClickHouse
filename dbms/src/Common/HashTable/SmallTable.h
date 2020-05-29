@@ -12,15 +12,16 @@ namespace DB
 }
 
 
-/** Replacement of the hash table for a small number (<10) of keys.
-  * Implemented as an array with linear search.
-  * The array is located inside the object.
-  * The interface is a subset of the HashTable interface.
+/** Replacement of the hash table for a small number (<10) of keys.     key的数量<10的时候, 可使用SmallTable替换hash table.
+  * Implemented as an array with linear search.                         基于线性搜索的数组实现的
+  * The array is located inside the object.                             数组位于对象内部
+  * The interface is a subset of the HashTable interface.               这个接口是HashTable接口的一个子集
   *
   * Insert is possible only if the `full` method returns false.
-  * With an unknown number of different keys,
-  *  you should check if the table is not full,
+  * With an unknown number of different keys, you should check if the table is not full,
   *  and do a `fallback` in this case (for example, use a real hash table).
+  *  只有在full()方法返回false时才可以插入.
+  *  对于未知数量的不同keys, 应检查表是否未满. 如果满了, 执行“回退”, 再使用真正的哈希表
   */
 template
 <
@@ -272,6 +273,7 @@ public:
         ++m_size;
     }
 
+    //ALWAYS_INLINE 强制内联。所有加了该语句的函数，在编译时会作为内联函数被使用(不会被编译成函数调用方式，而是直接嵌入到调用函数体内)。
     void ALWAYS_INLINE insertUnique(Key x)
     {
         new(&buf[m_size]) Cell(x, *this);

@@ -34,7 +34,7 @@ namespace DB {
     using ProgressCallback = std::function<void(const Progress &progress)>;
 
 
-/** The stream interface for reading data by blocks from the database.
+/** The stream interface for reading data by blocks from the database.  从数据库中以block方式读取数据的流的接口
   * Relational operations are supposed to be done also as implementations of this interface.
   * Watches out at how the source of the blocks works.
   * Lets you get information for profiling: rows per second, blocks per second, megabytes per second, etc.
@@ -56,7 +56,8 @@ namespace DB {
         virtual String getName() const = 0;
 
         /** Get data structure of the stream in a form of "header" block (it is also called "sample block").
-          * Header block contains column names, data types, columns of size 0. Constant columns must have corresponding values.
+          * Header block contains column names, data types, columns of size 0.
+          * Constant columns must have corresponding values.
           * It is guaranteed that method "read" returns blocks of exactly that structure.
           */
         virtual Block getHeader() const = 0;
@@ -76,7 +77,10 @@ namespace DB {
 
         /** Read next block.
           * If there are no more blocks, return an empty block (for which operator `bool` returns false).
+          *
           * NOTE: Only one thread can read from one instance of IBlockInputStream simultaneously.
+          * 一个线程只能同时读取一个BlockInputStream.
+          *
           * This also applies for readPrefix, readSuffix.
           */
         Block read();
@@ -240,6 +244,7 @@ namespace DB {
     protected:
         /// Order is important: `table_locks` must be destroyed after `children` so that tables from
         /// which child streams read are protected by the locks during the lifetime of the child streams.
+        //lock表结构, 在`children`执行完成之后再unlock, 确保在child streams执行过程中表结构不会被改变
         std::vector<TableStructureReadLockHolder> table_locks;
 
         BlockInputStreams children;
@@ -289,7 +294,7 @@ namespace DB {
         size_t total_rows_approx = 0;
 
         /// The successors must implement this function.
-        virtual Block readImpl() = 0;//readImpl()方法使在具体读取数据的时候调用的, 每个*InputStream都有自己的实现
+        virtual Block readImpl() = 0;//readImpl()方法使在具体读取数据的时候调用的, 每个*BlockInputStream都有自己的实现
 
         /// Here you can do a preliminary initialization.
         //进行初步初始化

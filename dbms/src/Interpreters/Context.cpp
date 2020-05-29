@@ -1940,7 +1940,7 @@ void Context::initializeExternalTablesIfSet()
     if (external_tables_initializer_callback)
     {
         external_tables_initializer_callback(*this);
-        /// Reset callback
+        /// Reset callback  重置回调函数
         external_tables_initializer_callback = {};
     }
 }

@@ -88,9 +88,11 @@
 #define DISABLE_LINE_WRAPPING "\033[?7l"
 #define ENABLE_LINE_WRAPPING "\033[?7h"
 
-namespace DB {
+namespace DB
+{
 
-    namespace ErrorCodes {
+    namespace ErrorCodes
+    {
         extern const int NETWORK_ERROR;
         extern const int NO_DATA_TO_INSERT;
         extern const int BAD_ARGUMENTS;
@@ -106,9 +108,11 @@ namespace DB {
     }
 
 
-    class Client : public Poco::Util::Application {
+    class Client : public Poco::Util::Application
+    {
     public:
-        Client() {}
+        Client()
+        {}
 
     private:
         using StringSet = std::unordered_set<String>;
@@ -145,13 +149,13 @@ namespace DB {
         Context context = Context::createGlobal();
 
         /// Buffer that reads from stdin in batch mode.
-        ReadBufferFromFileDescriptor std_in{STDIN_FILENO};
+        ReadBufferFromFileDescriptor std_in{STDIN_FILENO};//批处理模式下从标准输入读取信息到ReadBuffer  （标准输入对应的文件描述符）
 
         /// Console output.
-        WriteBufferFromFileDescriptor std_out{STDOUT_FILENO};
+        WriteBufferFromFileDescriptor std_out{STDOUT_FILENO};//将WriteBuffer中的数据写到标准输出      （标准输出对应的文件描述符）
         std::unique_ptr<ShellCommand> pager_cmd;
         /// The user can specify to redirect query output to a file.
-        std::optional<WriteBufferFromFile> out_file_buf;
+        std::optional<WriteBufferFromFile> out_file_buf;   //将WriteBuffer中的数据写到文件（对应SQL中包含了INTO OUTFILE 的情况）
         BlockOutputStreamPtr block_out_stream;
 
         /// The user could specify special file for server logs (stderr by default)
@@ -203,7 +207,8 @@ namespace DB {
         ConnectionParameters connection_parameters;
 
 
-        void initialize(Poco::Util::Application &self) {
+        void initialize(Poco::Util::Application &self)
+        {
             Poco::Util::Application::initialize(self);
 
             const char *home_path_cstr = getenv("HOME");
@@ -216,7 +221,8 @@ namespace DB {
 
             /// settings and limits could be specified in config file, but passed settings has higher priority
             // 可以在配置文件中指定clickhouse-client.xml中的settings和limits, 但命令行传递的参数将覆盖配置文件的参数
-            for (auto &&setting : context.getSettingsRef()) {
+            for (auto &&setting : context.getSettingsRef())
+            {
                 const String &name = setting.getName().toString();
                 if (config().has(name) && !setting.isChanged())
                     setting.setValue(config().getString(name));
@@ -228,11 +234,14 @@ namespace DB {
         }
 
 
-        int main(const std::vector<std::string> & /*args*/) {
-            try {
+        int main(const std::vector<std::string> & /*args*/)
+        {
+            try
+            {
                 return mainImpl();
             }
-            catch (const Exception &e) {
+            catch (const Exception &e)
+            {
                 bool print_stack_trace = config().getBool("stacktrace", false);
 
                 std::string text = e.displayText();
@@ -251,7 +260,8 @@ namespace DB {
                 /// Also don't print the stack trace in case of network errors.
                 if (print_stack_trace
                     && e.code() != ErrorCodes::NETWORK_ERROR
-                    && std::string::npos == embedded_stack_trace_pos) {
+                    && std::string::npos == embedded_stack_trace_pos)
+                {
                     std::cerr << "Stack trace:" << std::endl
                               << e.getStackTrace().toString();
                 }
@@ -259,14 +269,16 @@ namespace DB {
                 /// If exception code isn't zero, we should return non-zero return code anyway.
                 return e.code() ? e.code() : -1;
             }
-            catch (...) {
+            catch (...)
+            {
                 std::cerr << getCurrentExceptionMessage(false) << std::endl;
                 return getCurrentExceptionCode();
             }
         }
 
         /// Should we celebrate a bit?
-        bool isNewYearMode() {
+        bool isNewYearMode()
+        {
             time_t current_time = time(nullptr);
 
             /// It's bad to be intrusive.
@@ -278,7 +290,8 @@ namespace DB {
                    || (now.month() == 1 && now.day() <= 5);
         }
 
-        int mainImpl() {
+        int mainImpl()
+        {
             UseSSL use_ssl;
 
             registerFunctions();
@@ -319,7 +332,8 @@ namespace DB {
                 insert_format_max_block_size = config().getInt("insert_format_max_block_size",
                                                                context.getSettingsRef().max_insert_block_size);
 
-            if (!is_interactive) {
+            if (!is_interactive)
+            {
                 need_render_progress = config().getBool("progress", false);
                 echo_queries = config().getBool("echo", false);
                 ignore_error = config().getBool("ignore-error", false);
@@ -330,20 +344,25 @@ namespace DB {
 
             /// Initialize DateLUT here to avoid counting time spent here as query execution time.
             DateLUT::instance();
-            if (!context.getSettingsRef().use_client_time_zone) {
+            if (!context.getSettingsRef().use_client_time_zone)
+            {
                 const auto &time_zone = connection->getServerTimezone();
-                if (!time_zone.empty()) {
-                    try {
+                if (!time_zone.empty())
+                {
+                    try
+                    {
                         DateLUT::setDefaultTimezone(time_zone);
                     }
-                    catch (...) {
+                    catch (...)
+                    {
                         std::cerr << "Warning: could not switch to server time zone: " << time_zone
                                   << ", reason: " << getCurrentExceptionMessage(/* with_stacktrace = */ false)
                                   << std::endl
                                   << "Proceeding with local time zone."
                                   << std::endl << std::endl;
                     }
-                } else {
+                } else
+                {
                     std::cerr << "Warning: could not determine server time zone. "
                               << "Proceeding with local time zone."
                               << std::endl << std::endl;
@@ -357,8 +376,10 @@ namespace DB {
 
             config().keys("prompt_by_server_display_name", keys);
 
-            for (const String &key : keys) {
-                if (key != "default" && server_display_name.find(key) != std::string::npos) {
+            for (const String &key : keys)
+            {
+                if (key != "default" && server_display_name.find(key) != std::string::npos)
+                {
                     prompt_by_server_display_name = config().getRawString("prompt_by_server_display_name." + key);
                     break;
                 }
@@ -385,7 +406,8 @@ namespace DB {
             for (const auto &[key, value]: prompt_substitutions)
                 boost::replace_all(prompt_by_server_display_name, "{" + key + "}", value);
 
-            if (is_interactive) {//针对交互式模式的请求
+            if (is_interactive)
+            {//针对交互式模式的请求
                 if (!query_id.empty())
                     throw Exception("query_id could be specified only in non-interactive mode",
                                     ErrorCodes::BAD_ARGUMENTS);
@@ -396,7 +418,8 @@ namespace DB {
 #if USE_READLINE
                 SCOPE_EXIT({ Suggest::instance().finalize(); });
                 if (server_revision >= Suggest::MIN_SERVER_REVISION
-                    && !config().getBool("disable_suggestion", false)) {
+                    && !config().getBool("disable_suggestion", false))
+                {
                     /// Load suggestion data from the server.
                     // 从服务器加载建议数据, 方便在客户端命令行输出command line suggestions
                     Suggest::instance().load(connection_parameters, config().getInt("suggestion_limit"));
@@ -419,8 +442,10 @@ namespace DB {
                 else if (!home_path.empty())
                     history_file = home_path + "/.clickhouse-client-history";
 
-                if (!history_file.empty()) {
-                    if (Poco::File(history_file).exists()) {
+                if (!history_file.empty())
+                {
+                    if (Poco::File(history_file).exists())
+                    {
 #if USE_READLINE
                         int res = read_history(history_file.c_str());
                         if (res)
@@ -437,17 +462,20 @@ namespace DB {
                 if (rl_initialize())
                     throw Exception("Cannot initialize readline", ErrorCodes::CANNOT_READLINE);
 
-                auto clear_prompt_or_exit = [](int) {
+                auto clear_prompt_or_exit = [](int)
+                {
                     /// This is signal safe.
                     ssize_t res = write(STDOUT_FILENO, "\n", 1);
 
                     /// Allow to quit client while query is in progress by pressing Ctrl+C twice.
                     /// (First press to Ctrl+C will try to cancel query by InterruptListener).
-                    if (res == 1 && rl_line_buffer[0] && !RL_ISSTATE(RL_STATE_DONE)) {
+                    if (res == 1 && rl_line_buffer[0] && !RL_ISSTATE(RL_STATE_DONE))
+                    {
                         rl_replace_line("", 0);
                         if (rl_forced_update_display())
                             _exit(0);
-                    } else {
+                    } else
+                    {
                         /// A little dirty, but we struggle to find better way to correctly
                         /// force readline to exit after returning from the signal handler.
                         _exit(0);
@@ -462,9 +490,11 @@ namespace DB {
 
                 std::cout << (isNewYearMode() ? "Happy new year." : "Bye.") << std::endl;
                 return 0;
-            } else {
+            } else
+            {
                 /// This is intended for testing purposes.
-                if (config().getBool("always_load_suggestion_data", false)) {
+                if (config().getBool("always_load_suggestion_data", false))
+                {
 #if USE_READLINE
                     SCOPE_EXIT({ Suggest::instance().finalize(); });
                     Suggest::instance().load(connection_parameters, config().getInt("suggestion_limit"));
@@ -485,7 +515,8 @@ namespace DB {
         }
 
 
-        void connect() {
+        void connect()
+        {
             connection_parameters = ConnectionParameters(config());
 
             if (is_interactive)
@@ -513,7 +544,8 @@ namespace DB {
             UInt64 server_version_minor = 0;
             UInt64 server_version_patch = 0;
 
-            if (max_client_network_bandwidth) {
+            if (max_client_network_bandwidth)
+            {
                 ThrottlerPtr throttler = std::make_shared<Throttler>(max_client_network_bandwidth, 0, "");
                 connection->setThrottler(throttler);
             }
@@ -525,11 +557,13 @@ namespace DB {
             server_version = toString(server_version_major) + "." + toString(server_version_minor) + "." +
                              toString(server_version_patch);
 
-            if (server_display_name = connection->getServerDisplayName(); server_display_name.length() == 0) {
+            if (server_display_name = connection->getServerDisplayName(); server_display_name.length() == 0)
+            {
                 server_display_name = config().getString("host", "localhost");
             }
 
-            if (is_interactive) {
+            if (is_interactive)
+            {
                 std::cout << "Connected to " << server_name
                           << " server version " << server_version
                           << " revision " << server_revision
@@ -540,7 +574,8 @@ namespace DB {
 
         /// Check if multi-line query is inserted from the paste buffer.
         /// Allows delaying the start of query execution until the entirety of query is inserted.
-        static bool hasDataInSTDIN() {
+        static bool hasDataInSTDIN()
+        {
             timeval timeout = {0, 0};
             fd_set fds;
             FD_ZERO(&fds);
@@ -548,12 +583,14 @@ namespace DB {
             return select(1, &fds, nullptr, nullptr, &timeout) == 1;
         }
 
-        inline const String prompt() const {
+        inline const String prompt() const
+        {
             return boost::replace_all_copy(prompt_by_server_display_name, "{database}",
                                            config().getString("database", "default"));
         }
 
-        void loop() {
+        void loop()
+        {
             String input;//字符串input中保存着一条完整的SQL
             String prev_input;
 
@@ -561,7 +598,8 @@ namespace DB {
             //三元表达式: input.empty() ? prompt().c_str() : ":-] ")
             //          input.empty() = true, readline()方法的入参就是提示符prompt().c_str(), 如"houxuebo-MacBookPro.local :)"或"bogo: "等
             //          input.empty() = false, readline()方法的入参就是提示符":-] ", 意思是一条完整的SQL是通过多行输入的
-            while (char *line_ = readline(input.empty() ? prompt().c_str() : ":-] ")) {
+            while (char *line_ = readline(input.empty() ? prompt().c_str() : ":-] "))
+            {
                 String line = line_;
                 free(line_);
 
@@ -585,8 +623,10 @@ namespace DB {
 
                 //不以'\'结尾 && (以';'结尾 || 以'\G'结尾 || (不包含多行设置 && 无标准输入))
                 if (!ends_with_backslash && (ends_with_semicolon || has_vertical_output_suffix ||
-                                             (!config().has("multiline") && !hasDataInSTDIN()))) {
-                    if (input != prev_input) {
+                                             (!config().has("multiline") && !hasDataInSTDIN())))
+                {
+                    if (input != prev_input)
+                    {
                         /// Replace line breaks with spaces to prevent the following problem.
                         /// Every line of multi-line query is saved to history file as a separate line.
                         /// If the user restarts the client then after pressing the "up" button
@@ -607,15 +647,18 @@ namespace DB {
                     if (has_vertical_output_suffix)
                         input = input.substr(0, input.length() - 2);
 
-                    try {
+                    try
+                    {
                         //字符串input中保存着一条完整的SQL
                         //process()方法, 重点
                         if (!process(input))
                             break;
                     }
-                    catch (const Exception &e) {
+                    catch (const Exception &e)
+                    {
                         actual_client_error = e.code();
-                        if (!actual_client_error || actual_client_error != expected_client_error) {
+                        if (!actual_client_error || actual_client_error != expected_client_error)
+                        {
                             std::cerr << std::endl
                                       << "Exception on client:" << std::endl
                                       << "Code: " << e.code() << ". " << e.displayText() << std::endl;
@@ -635,19 +678,22 @@ namespace DB {
                     }
 
                     input = "";//等待下一个SQL输入并执行
-                } else {
+                } else
+                {
                     input += '\n';//一个SQL是分多行输入的, 等待剩余的SQL输入完毕再执行
                 }
             }
         }
 
 
-        void nonInteractive() {
+        void nonInteractive()
+        {
             String text;
 
             if (config().has("query"))
                 text = config().getString("query");
-            else {
+            else
+            {
                 /// If 'query' parameter is not set, read a query from stdin.
                 /// The query is read entirely into memory (streaming is disabled).
                 ReadBufferFromFileDescriptor in(STDIN_FILENO);
@@ -658,11 +704,13 @@ namespace DB {
         }
 
 
-        bool process(const String &text) {
+        bool process(const String &text)
+        {
             const bool test_mode = config().has("testmode");
             //`--multiquery, -n` – 如果指定, 允许处理用逗号分隔的多个查询, 只在非交互模式下生效。
             //详见docs/zh/interfaces/cli.md
-            if (config().has("multiquery")) {
+            if (config().has("multiquery")) //处理多条SQL (就是分割输入的SQL并循环处理这些SQL)
+            {
                 {   /// disable logs if expects errors
                     TestHint test_hint(test_mode, text);
                     if (test_hint.clientError() || test_hint.serverError())
@@ -675,13 +723,16 @@ namespace DB {
                 const char *begin = text.data();
                 const char *end = begin + text.size();
 
-                while (begin < end) {
+                while (begin < end)
+                {
                     const char *pos = begin;
                     ASTPtr ast = parseQuery(pos, end, true);
 
 
-                    if (!ast) {
-                        if (ignore_error) {
+                    if (!ast)
+                    {
+                        if (ignore_error)
+                        {
                             Tokens tokens(begin, end);
                             TokenIterator token_iterator(tokens);
                             while (token_iterator->type != TokenType::Semicolon && token_iterator.isValid())
@@ -695,7 +746,8 @@ namespace DB {
 
                     auto *insert = ast->as<ASTInsertQuery>();
 
-                    if (insert && insert->data) {
+                    if (insert && insert->data)
+                    {
                         pos = find_first_symbols<'\n'>(insert->data, end);
                         insert->end = pos;
                     }
@@ -710,7 +762,8 @@ namespace DB {
                     expected_client_error = test_hint.clientError();
                     expected_server_error = test_hint.serverError();
 
-                    try {
+                    try
+                    {
                         auto ast_to_process = ast;
                         if (insert && insert->data)
                             ast_to_process = nullptr;
@@ -718,7 +771,8 @@ namespace DB {
                         if (!processSingleQuery(str, ast_to_process) && !ignore_error)
                             return false;
                     }
-                    catch (...) {
+                    catch (...)
+                    {
                         last_exception = std::make_unique<Exception>(getCurrentExceptionMessage(true),
                                                                      getCurrentExceptionCode());
                         actual_client_error = last_exception->code();
@@ -730,7 +784,8 @@ namespace DB {
                     if (!test_hint.checkActual(actual_server_error, actual_client_error, got_exception, last_exception))
                         connection->forceConnected();
 
-                    if (got_exception && !ignore_error) {
+                    if (got_exception && !ignore_error)
+                    {
                         if (is_interactive)
                             break;
                         else
@@ -739,21 +794,25 @@ namespace DB {
                 }
 
                 return true;
-            } else {
-                return processSingleQuery(text);
+            } else
+            {
+                return processSingleQuery(text); //处理单条SQL
             }
         }
 
 
-        bool processSingleQuery(const String &line, ASTPtr parsed_query_ = nullptr) {
+        bool processSingleQuery(const String &line, ASTPtr parsed_query_ = nullptr)
+        {
             if (exit_strings.end() !=
-                exit_strings.find(trim(line, [](char c) { return isWhitespaceASCII(c) || c == ';'; })))
+                exit_strings.find(trim(line, [](char c)
+                { return isWhitespaceASCII(c) || c == ';'; })))
                 return false;//判断SQL是否以空格或分号结尾
 
             resetOutput();//清空buffer缓冲区
             got_exception = false;
 
-            if (echo_queries) {
+            if (echo_queries)
+            {
                 writeString(line, std_out);
                 writeChar('\n', std_out);
                 std_out.next();
@@ -768,7 +827,8 @@ namespace DB {
             /// Thus we need to parse the query.
             parsed_query = parsed_query_;
 
-            if (!parsed_query) {//如果ASTPtr是空指针(这里的目的应该是: 如果传过来的参数如果就是AST, 则不必解析)
+            if (!parsed_query)
+            {//如果ASTPtr是空指针(这里的目的应该是: 如果传过来的参数如果就是AST, 则不必解析)
                 const char *begin = query.data();
                 parsed_query = parseQuery(begin, begin + query.size(), false);
             }
@@ -786,7 +846,8 @@ namespace DB {
                 /// Temporarily apply query settings to context.
                 std::optional<Settings> old_settings;
                 SCOPE_EXIT({ if (old_settings) context.setSettings(*old_settings); });
-                auto apply_query_settings = [&](const IAST &settings_ast) {
+                auto apply_query_settings = [&](const IAST &settings_ast)
+                {
                     if (!old_settings)
                         old_settings.emplace(context.getSettingsRef());
                     context.applySettingsChanges(settings_ast.as<ASTSetQuery>()->changes);
@@ -803,7 +864,7 @@ namespace DB {
 
                 /// INSERT query for which data transfer is needed (not an INSERT SELECT) is processed separately.
                 if (insert && !insert->select)
-                    processInsertQuery();//处理INSERT语句
+                    processInsertQuery();  //处理INSERT语句
                 else
                     processOrdinaryQuery();//处理INSERT SELECT语句和其他语句
             }
@@ -811,10 +872,13 @@ namespace DB {
             /// Do not change context (current DB, settings) in case of an exception.
             //如果出现异常, 不会更改上下文(当前数据库, 设置等)
             //如果没有出现异常, 会更改一些设置并将默认数据库置为刚刚使用的数据库
-            if (!got_exception) {
-                if (const auto *set_query = parsed_query->as<ASTSetQuery>()) {
+            if (!got_exception)
+            {
+                if (const auto *set_query = parsed_query->as<ASTSetQuery>())
+                {
                     /// Save all changes in settings to avoid losing them if the connection is lost.
-                    for (const auto &change : set_query->changes) {
+                    for (const auto &change : set_query->changes)
+                    {
                         if (change.name == "profile")
                             current_profile = change.value.safeGet<String>();
                         else
@@ -822,7 +886,8 @@ namespace DB {
                     }
                 }
 
-                if (const auto *use_query = parsed_query->as<ASTUseQuery>()) {
+                if (const auto *use_query = parsed_query->as<ASTUseQuery>())
+                {
                     const String &new_database = use_query->database;
                     /// If the client initiates the reconnection, it takes the settings from the config.
                     config().setString("database", new_database);
@@ -831,7 +896,8 @@ namespace DB {
                 }
             }
 
-            if (is_interactive) {
+            if (is_interactive)
+            {
                 std::cout << std::endl
                           << processed_rows << " rows in set. Elapsed: " << watch.elapsedSeconds() << " sec. ";
 
@@ -839,7 +905,8 @@ namespace DB {
                     writeFinalProgress();
 
                 std::cout << std::endl << std::endl;
-            } else if (print_time_to_stderr) {
+            } else if (print_time_to_stderr)
+            {
                 std::cerr << watch.elapsedSeconds() << "\n";
             }
 
@@ -848,7 +915,8 @@ namespace DB {
 
 
         /// Convert external tables to ExternalTableData and send them using the connection.
-        void sendExternalTables() {
+        void sendExternalTables()
+        {
             const auto *select = parsed_query->as<ASTSelectWithUnionQuery>();
             if (!select && !external_tables.empty())
                 throw Exception("External tables could be sent only with select query", ErrorCodes::BAD_ARGUMENTS);
@@ -862,10 +930,11 @@ namespace DB {
 
 
         /// Process the query that doesn't require transferring data blocks to the server.
-        void processOrdinaryQuery() {
+        void processOrdinaryQuery()
+        {
+            //客户端sendQuery()后, SQL及其他信息封装成数据包发送到服务端, //数据包被发送到对应的端口, 由服务端*Handler进行具体的处理, run() -> runImpl() -> receivePacket()
             connection->sendQuery(query, query_id, QueryProcessingStage::Complete, &context.getSettingsRef(), nullptr,
-                                  true);//客户端sendQuery()后, SQL及其他信息封装成数据包发送到服务端,
-                                        //数据包被发送到对应的端口, 由服务端*Handler进行具体的处理, run() -> runImpl() -> receivePacket()
+                                  true);
             sendExternalTables();
             receiveResult();//客户端接收服务端的处理结果, 也是以数据包的形式发送过来的
         }
@@ -873,7 +942,8 @@ namespace DB {
 
         /// Process the query that requires transferring data blocks to the server.
         //将INSERT SQL拆分成两部分, 需要插入的数据与SQL是单独发送的
-        void processInsertQuery() {
+        void processInsertQuery()
+        {
             /// Send part of query without data, because data will be sent separately.
             const auto &parsed_insert_query = parsed_query->as<ASTInsertQuery &>();
             String query_without_data = parsed_insert_query.data
@@ -890,26 +960,31 @@ namespace DB {
             /// Receive description of table structure.
             Block sample;
             ColumnsDescription columns_description;
-            if (receiveSampleBlock(sample, columns_description)) {
+            // receiveSampleBlock() 方法是用于client接收server发送的表结构的.
+            // client端接收server端发来的表结构, 然后根据这个结构将数据发送给server端
+            if (receiveSampleBlock(sample, columns_description))
+            {
                 /// If structure was received (thus, server has not thrown an exception), send our data with that structure.
-                //client端接收server端发来的表结构, 然后根据这个结构将数据发送给server端
                 sendData(sample, columns_description);
                 receiveEndOfQuery();
             }
         }
 
 
-        ASTPtr parseQuery(const char *&pos, const char *end, bool allow_multi_statements) {
+        ASTPtr parseQuery(const char *&pos, const char *end, bool allow_multi_statements)
+        {
             //allow_multi_statements=true, 表示在处理多个";"分隔的SQL, 仅发生在非交互式模式下
             //allow_multi_statements=false, 表示在单个的SQL
             ParserQuery parser(end, true);
             ASTPtr res;
 
-            if (is_interactive || ignore_error) {
+            if (is_interactive || ignore_error)
+            {
                 String message;
                 res = tryParseQuery(parser, pos, end, message, true, "", allow_multi_statements, 0);
 
-                if (!res) {
+                if (!res)
+                {
                     std::cerr << std::endl << message << std::endl << std::endl;
                     return nullptr;
                 }
@@ -918,7 +993,8 @@ namespace DB {
 
 
             //在客户端上打印格式化的SQL
-            if (is_interactive) {
+            if (is_interactive)
+            {
                 std::cout << std::endl;
                 formatAST(*res, std::cout);
                 std::cout << std::endl << std::endl;
@@ -928,30 +1004,33 @@ namespace DB {
         }
 
 
-        void sendData(Block &sample, const ColumnsDescription &columns_description) {
+        void sendData(Block &sample, const ColumnsDescription &columns_description)
+        {
             /// If INSERT data must be sent.
             const auto *parsed_insert_query = parsed_query->as<ASTInsertQuery>();
             if (!parsed_insert_query)
                 return;
 
-            if (parsed_insert_query->data) {
-                /// Send data contained in the query.
+            if (parsed_insert_query->data)
+            { /// Send data contained in the query.
                 ReadBufferFromMemory data_in(parsed_insert_query->data,
                                              parsed_insert_query->end - parsed_insert_query->data);
                 sendDataFrom(data_in, sample, columns_description);//接收内存的数据并发送
-            } else if (!is_interactive) {
-                /// Send data read from stdin.
+            } else if (!is_interactive)
+            { /// Send data read from stdin.
                 sendDataFrom(std_in, sample, columns_description);//接收std_in的数据并发送(批处理模式, 非交互式模式)
             } else
                 throw Exception("No data to insert", ErrorCodes::NO_DATA_TO_INSERT);
         }
 
 
-        void sendDataFrom(ReadBuffer &buf, Block &sample, const ColumnsDescription &columns_description) {
+        void sendDataFrom(ReadBuffer &buf, Block &sample, const ColumnsDescription &columns_description)
+        {
             String current_format = insert_format;
 
             /// Data format can be specified in the INSERT query.
-            if (const auto *insert = parsed_query->as<ASTInsertQuery>()) {
+            if (const auto *insert = parsed_query->as<ASTInsertQuery>())
+            {
                 if (!insert->format.empty())
                     current_format = insert->format;
             }
@@ -960,14 +1039,16 @@ namespace DB {
                     current_format, buf, sample, insert_format_max_block_size);
 
             const auto &column_defaults = columns_description.getDefaults();
-            if (!column_defaults.empty())
+            if (!column_defaults.empty()) //如果列有默认值, 需要添加一个Defaults的InputStream
                 block_input = std::make_shared<AddingDefaultsBlockInputStream>(block_input, column_defaults, context);
 
+            //创建一个AsynchronousBlockInputStream (异步的InputStream)
             BlockInputStreamPtr async_block_input = std::make_shared<AsynchronousBlockInputStream>(block_input);
 
             async_block_input->readPrefix();
 
-            while (true) {
+            while (true)
+            {
                 Block block = async_block_input->read();
                 connection->sendData(block);
                 processed_rows += block.rows();
@@ -986,22 +1067,26 @@ namespace DB {
 
 
         /// Flush all buffers.
-        void resetOutput() {
+        void resetOutput()
+        {
             block_out_stream.reset();
             logs_out_stream.reset();
 
-            if (pager_cmd) {
+            if (pager_cmd)
+            {
                 pager_cmd->in.close();
                 pager_cmd->wait();
             }
             pager_cmd = nullptr;
 
-            if (out_file_buf) {
+            if (out_file_buf)
+            {
                 out_file_buf->next();
                 out_file_buf.reset();
             }
 
-            if (out_logs_buf) {
+            if (out_logs_buf)
+            {
                 out_logs_buf->next();
                 out_logs_buf.reset();
             }
@@ -1010,10 +1095,10 @@ namespace DB {
         }
 
 
-        /// Receives and processes packets coming from server.
-        /// Also checks if query execution should be cancelled.
+        /// Receives and processes packets coming from server. Also checks if query execution should be cancelled.
         //接收处理服务器Server端发送的数据包, 同时检查SQL执行是否被取消
-        void receiveResult() {
+        void receiveResult()
+        {
             InterruptListener interrupt_listener;
             bool cancelled = false;
 
@@ -1025,17 +1110,21 @@ namespace DB {
                     = std::max(min_poll_interval,
                                std::min<size_t>(receive_timeout.totalMicroseconds(), default_poll_interval));
 
-            while (true) {
+            while (true)
+            {
                 Stopwatch receive_watch(CLOCK_MONOTONIC_COARSE);
 
-                while (true) {
+                while (true)
+                {
                     /// Has the Ctrl+C been pressed and thus the query should be cancelled?
                     /// If this is the case, inform the server about it
                     /// and receive the remaining packets to avoid losing sync.
                     // SQL执行期间要一直检查SQL是否被客户端终止
                     // 如果SQL执行被终止, 需要通知服务器 并 接收剩余的数据包以避免丢失同步
-                    if (!cancelled) {
-                        auto cancelQuery = [&] {
+                    if (!cancelled)
+                    {
+                        auto cancelQuery = [&]
+                        {
                             connection->sendCancel();
                             cancelled = true;
                             if (is_interactive)
@@ -1045,11 +1134,14 @@ namespace DB {
                             interrupt_listener.unblock();
                         };
 
-                        if (interrupt_listener.check()) {//客户端Ctrl+C手动终止查询
+                        if (interrupt_listener.check())
+                        {//客户端Ctrl+C手动终止查询
                             cancelQuery();
-                        } else {
+                        } else
+                        {
                             double elapsed = receive_watch.elapsedSeconds();
-                            if (elapsed > receive_timeout.totalSeconds()) {//连接超时, 终止查询
+                            if (elapsed > receive_timeout.totalSeconds())
+                            {//连接超时, 终止查询
                                 std::cout << "Timeout exceeded while receiving data from server."
                                           << " Waited for " << static_cast<size_t>(elapsed) << " seconds,"
                                           << " timeout is " << receive_timeout.totalSeconds() << " seconds."
@@ -1062,7 +1154,8 @@ namespace DB {
 
                     /// Poll for changes after a cancellation check,
                     /// otherwise it never reached because of progress updates from server.
-                    //cancellation检查后需要统计changes数量, 跳出当前while循环, 接收剩余的数据包
+                    // 进行cancellation检查后, 检查working_buffer是否被写满或是否经过了指定的时间间隔
+                    // 跳出当前while循环, 接收剩余的数据包
                     if (connection->poll(poll_interval))
                         break;
                 }
@@ -1082,10 +1175,12 @@ namespace DB {
         /// Returns true if one should continue receiving packets.
         // 接收部分结果、进度信息或异常信息并进行处理。
         // ***如果应继续接收数据包, 则返回true***
-        bool receiveAndProcessPacket() {
+        bool receiveAndProcessPacket()
+        {
             Connection::Packet packet = connection->receivePacket();
 
-            switch (packet.type) {
+            switch (packet.type)
+            {
                 case Protocol::Server::Data:
                     onData(packet.block);
                     return true;
@@ -1126,11 +1221,15 @@ namespace DB {
 
 
         /// Receive the block that serves as an example of the structure of table where data will be inserted.
-        bool receiveSampleBlock(Block &out, ColumnsDescription &columns_description) {
-            while (true) {
+        ///接收一个block, 该块是所插入数据目标表结构的示例
+        bool receiveSampleBlock(Block &out, ColumnsDescription &columns_description)
+        {
+            while (true)
+            {
                 Connection::Packet packet = connection->receivePacket();
 
-                switch (packet.type) {
+                switch (packet.type)
+                {
                     case Protocol::Server::Data:
                         out = packet.block;
                         return true;
@@ -1159,11 +1258,14 @@ namespace DB {
 
         /// Process Log packets, exit when receive Exception or EndOfStream
         // 用于处理接收到的日志数据包, 收到Exception或EndOfStream时结束
-        bool receiveEndOfQuery() {
-            while (true) {
+        bool receiveEndOfQuery()
+        {
+            while (true)
+            {
                 Connection::Packet packet = connection->receivePacket();
 
-                switch (packet.type) {
+                switch (packet.type)
+                {
                     case Protocol::Server::EndOfStream:
                         onEndOfStream();
                         return true;
@@ -1186,15 +1288,19 @@ namespace DB {
         }
 
 
-        void initBlockOutputStream(const Block &block) {
-            if (!block_out_stream) {
+        void initBlockOutputStream(const Block &block)
+        {
+            if (!block_out_stream)
+            {
                 WriteBuffer *out_buf = nullptr;
                 String pager = config().getString("pager", "");
-                if (!pager.empty()) {
+                if (!pager.empty())
+                {
                     signal(SIGPIPE, SIG_IGN);
                     pager_cmd = ShellCommand::execute(pager, true);
                     out_buf = &pager_cmd->in;
-                } else {
+                } else
+                {
                     out_buf = &std_out;
                 }
 
@@ -1202,8 +1308,10 @@ namespace DB {
 
                 /// The query can specify output format or output file.
                 /// FIXME: try to prettify this cast using `as<>()`
-                if (const auto *query_with_output = dynamic_cast<const ASTQueryWithOutput *>(parsed_query.get())) {
-                    if (query_with_output->out_file) {
+                if (const auto *query_with_output = dynamic_cast<const ASTQueryWithOutput *>(parsed_query.get()))
+                {
+                    if (query_with_output->out_file)
+                    {
                         const auto &out_file_node = query_with_output->out_file->as<ASTLiteral &>();
                         const auto &out_file = out_file_node.value.safeGet<std::string>();
 
@@ -1214,7 +1322,8 @@ namespace DB {
                         if (is_interactive && is_default_format)
                             current_format = "TabSeparated";
                     }
-                    if (query_with_output->format != nullptr) {
+                    if (query_with_output->format != nullptr)
+                    {
                         if (has_vertical_output_suffix)
                             throw Exception("Output format already specified",
                                             ErrorCodes::CLIENT_OUTPUT_FORMAT_SPECIFIED);
@@ -1232,19 +1341,25 @@ namespace DB {
         }
 
 
-        void initLogsOutputStream() {
-            if (!logs_out_stream) {
+        void initLogsOutputStream()
+        {
+            if (!logs_out_stream)
+            {
                 WriteBuffer *wb = out_logs_buf.get();
 
-                if (!out_logs_buf) {
-                    if (server_logs_file.empty()) {
+                if (!out_logs_buf)
+                {
+                    if (server_logs_file.empty())
+                    {
                         /// Use stderr by default
                         out_logs_buf = std::make_unique<WriteBufferFromFileDescriptor>(STDERR_FILENO);
                         wb = out_logs_buf.get();
-                    } else if (server_logs_file == "-") {
+                    } else if (server_logs_file == "-")
+                    {
                         /// Use stdout if --server_logs_file=- specified
                         wb = &std_out;
-                    } else {
+                    } else
+                    {
                         out_logs_buf = std::make_unique<WriteBufferFromFile>(server_logs_file, DBMS_DEFAULT_BUFFER_SIZE,
                                                                              O_WRONLY | O_APPEND | O_CREAT);
                         wb = out_logs_buf.get();
@@ -1257,7 +1372,8 @@ namespace DB {
         }
 
 
-        void onData(Block &block) {
+        void onData(Block &block)
+        {
             if (written_progress_chars)
                 clearProgress();
 
@@ -1265,44 +1381,50 @@ namespace DB {
                 return;
 
             processed_rows += block.rows();
-            initBlockOutputStream(block);
+            initBlockOutputStream(block);//分析一下
 
             /// The header block containing zero rows was used to initialize block_out_stream, do not output it.
             //头部数据块使用与初始化block_out_stream的, 不包含数据，不要将这个块输出
-            if (block.rows() != 0) {
-                block_out_stream->write(block);
+            if (block.rows() != 0)
+            {
+                block_out_stream->write(block);//分析一下
                 written_first_block = true;
             }
 
             /// Received data block is immediately displayed to the user.
             // 接收到的数据块立即显示给用户
-            block_out_stream->flush();
+            block_out_stream->flush();//分析一下
 
             /// Restore progress bar after data block.
             writeProgress();
         }
 
 
-        void onLogData(Block &block) {
+        void onLogData(Block &block)
+        {
             initLogsOutputStream();
             logs_out_stream->write(block);
             logs_out_stream->flush();
         }
 
 
-        void onTotals(Block &block) {
+        void onTotals(Block &block)
+        {
             initBlockOutputStream(block);
             block_out_stream->setTotals(block);
         }
 
-        void onExtremes(Block &block) {
+        void onExtremes(Block &block)
+        {
             initBlockOutputStream(block);
             block_out_stream->setExtremes(block);
         }
 
 
-        void onProgress(const Progress &value) {
-            if (!progress.incrementPiecewiseAtomically(value)) {
+        void onProgress(const Progress &value)
+        {
+            if (!progress.incrementPiecewiseAtomically(value))
+            {
                 // Just a keep-alive update.
                 return;
             }
@@ -1312,13 +1434,15 @@ namespace DB {
         }
 
 
-        void clearProgress() {
+        void clearProgress()
+        {
             written_progress_chars = 0;
             std::cerr << RESTORE_CURSOR_POSITION CLEAR_TO_END_OF_LINE;
         }
 
 
-        void writeProgress() {
+        void writeProgress()
+        {
             if (!need_render_progress)
                 return;
 
@@ -1367,21 +1491,25 @@ namespace DB {
                                                                                          : 13);    /// Don't count invisible output (escape sequences).
 
             /// If the approximate number of rows to process is known, we can display a progress bar and percentage.
-            if (progress.total_rows_to_read > 0) {
+            if (progress.total_rows_to_read > 0)
+            {
                 size_t total_rows_corrected = std::max(progress.read_rows, progress.total_rows_to_read);
 
                 /// To avoid flicker, display progress bar only if .5 seconds have passed since query execution start
                 ///  and the query is less than halfway done.
 
-                if (elapsed_ns > 500000000) {
+                if (elapsed_ns > 500000000)
+                {
                     /// Trigger to start displaying progress bar. If query is mostly done, don't display it.
                     if (progress.read_rows * 2 < total_rows_corrected)
                         show_progress_bar = true;
 
-                    if (show_progress_bar) {
+                    if (show_progress_bar)
+                    {
                         ssize_t width_of_progress_bar =
                                 static_cast<ssize_t>(terminal_size.ws_col) - written_progress_chars - strlen(" 99%");
-                        if (width_of_progress_bar > 0) {
+                        if (width_of_progress_bar > 0)
+                        {
                             std::string bar = UnicodeBar::render(
                                     UnicodeBar::getWidth(progress.read_rows, 0, total_rows_corrected,
                                                          width_of_progress_bar));
@@ -1403,7 +1531,8 @@ namespace DB {
         }
 
 
-        void writeFinalProgress() {
+        void writeFinalProgress()
+        {
             std::cout << "Processed "
                       << formatReadableQuantity(progress.read_rows) << " rows, "
                       << formatReadableSizeWithDecimalSuffix(progress.read_bytes);
@@ -1419,12 +1548,14 @@ namespace DB {
         }
 
 
-        void onException(const Exception &e) {
+        void onException(const Exception &e)
+        {
             resetOutput();
             got_exception = true;
 
             actual_server_error = e.code();
-            if (expected_server_error) {
+            if (expected_server_error)
+            {
                 if (actual_server_error == expected_server_error)
                     return;
                 std::cerr << "Expected error code: " << expected_server_error << " but got: " << actual_server_error
@@ -1442,13 +1573,15 @@ namespace DB {
         }
 
 
-        void onProfileInfo(const BlockStreamProfileInfo &profile_info) {
+        void onProfileInfo(const BlockStreamProfileInfo &profile_info)
+        {
             if (profile_info.hasAppliedLimit() && block_out_stream)
                 block_out_stream->setRowsBeforeLimit(profile_info.getRowsBeforeLimit());
         }
 
 
-        void onEndOfStream() {
+        void onEndOfStream()
+        {
             if (block_out_stream)
                 block_out_stream->writeSuffix();
 
@@ -1461,13 +1594,15 @@ namespace DB {
                 std::cout << "Ok." << std::endl;
         }
 
-        void showClientVersion() {
+        void showClientVersion()
+        {
             std::cout << DBMS_NAME << " client version " << VERSION_STRING << VERSION_OFFICIAL << "." << std::endl;
         }
 
         //客户端初始化方法, 应该是在发起客户端连接时先执行init()方法
     public:
-        void init(int argc, char **argv) {
+        void init(int argc, char **argv)
+        {
             /// Don't parse options with Poco library. We need more sophisticated processing.
             stopOptionsProcessing();
 
@@ -1483,10 +1618,12 @@ namespace DB {
             std::vector<Arguments> external_tables_arguments;
 
             bool in_external_group = false;
-            for (int arg_num = 1; arg_num < argc; ++arg_num) {
+            for (int arg_num = 1; arg_num < argc; ++arg_num)
+            {
                 const char *arg = argv[arg_num];
 
-                if (0 == strcmp(arg, "--external")) {
+                if (0 == strcmp(arg, "--external"))
+                {
                     in_external_group = true;
                     external_tables_arguments.emplace_back(Arguments{""});
                 }
@@ -1496,7 +1633,8 @@ namespace DB {
                              || 0 == strncmp(arg, "--name=", strlen("--name="))
                              || 0 == strncmp(arg, "--format=", strlen("--format="))
                              || 0 == strncmp(arg, "--structure=", strlen("--structure="))
-                             || 0 == strncmp(arg, "--types=", strlen("--types=")))) {
+                             || 0 == strncmp(arg, "--types=", strlen("--types="))))
+                {
                     external_tables_arguments.back().emplace_back(arg);
                 }
                     /// Options with value after whitespace.
@@ -1505,15 +1643,18 @@ namespace DB {
                              || 0 == strcmp(arg, "--name")
                              || 0 == strcmp(arg, "--format")
                              || 0 == strcmp(arg, "--structure")
-                             || 0 == strcmp(arg, "--types"))) {
-                    if (arg_num + 1 < argc) {
+                             || 0 == strcmp(arg, "--types")))
+                {
+                    if (arg_num + 1 < argc)
+                    {
                         external_tables_arguments.back().emplace_back(arg);
                         ++arg_num;
                         arg = argv[arg_num];
                         external_tables_arguments.back().emplace_back(arg);
                     } else
                         break;
-                } else {
+                } else
+                {
                     in_external_group = false;
                     common_arguments.emplace_back(arg);
                 }
@@ -1525,7 +1666,8 @@ namespace DB {
 
             unsigned line_length = po::options_description::m_default_line_length;
             unsigned min_description_length = line_length / 2;
-            if (!stdin_is_not_tty) {
+            if (!stdin_is_not_tty)
+            {
                 if (ioctl(STDIN_FILENO, TIOCGWINSZ, &terminal_size))
                     throwFromErrno("Cannot obtain terminal window size (ioctl TIOCGWINSZ)", ErrorCodes::SYSTEM_ERROR);
                 line_length = std::max(
@@ -1599,12 +1741,14 @@ namespace DB {
             po::store(parsed, options);
             po::notify(options);
 
-            if (options.count("version") || options.count("V")) {
+            if (options.count("version") || options.count("V"))
+            {
                 showClientVersion();
                 exit(0);
             }
 
-            if (options.count("version-clean")) {
+            if (options.count("version-clean"))
+            {
                 std::cout << VERSION_STRING;
                 exit(0);
             }
@@ -1623,7 +1767,8 @@ namespace DB {
                 Poco::Logger::root().setLevel(options["log-level"].as<std::string>());
 
             size_t number_of_external_tables_with_stdin_source = 0;
-            for (size_t i = 0; i < external_tables_arguments.size(); ++i) {
+            for (size_t i = 0; i < external_tables_arguments.size(); ++i)
+            {
                 /// Parse commandline options related to external tables.
                 po::parsed_options parsed_tables = po::command_line_parser(
                         external_tables_arguments[i].size(), external_tables_arguments[i].data()).options(
@@ -1631,7 +1776,8 @@ namespace DB {
                 po::variables_map external_options;
                 po::store(parsed_tables, external_options);
 
-                try {
+                try
+                {
                     external_tables.emplace_back(external_options);
                     if (external_tables.back().file == "-")
                         ++number_of_external_tables_with_stdin_source;
@@ -1639,7 +1785,8 @@ namespace DB {
                         throw Exception("Two or more external tables has stdin (-) set as --file field",
                                         ErrorCodes::BAD_ARGUMENTS);
                 }
-                catch (const Exception &e) {
+                catch (const Exception &e)
+                {
                     std::string text = e.displayText();
                     std::cerr << "Code: " << e.code() << ". " << text << std::endl;
                     std::cerr << "Table №" << i << std::endl << std::endl;
@@ -1649,7 +1796,8 @@ namespace DB {
 
             /// Copy settings-related program options to config.
             /// TODO: Is this code necessary?
-            for (const auto &setting : context.getSettingsRef()) {
+            for (const auto &setting : context.getSettingsRef())
+            {
                 const String name = setting.getName().toString();
                 if (options.count(name))
                     config().setString(name, options[name].as<std::string>());
@@ -1712,7 +1860,8 @@ namespace DB {
                 server_logs_file = options["server_logs_file"].as<std::string>();
             if (options.count("disable_suggestion"))
                 config().setBool("disable_suggestion", true);
-            if (options.count("always_load_suggestion_data")) {
+            if (options.count("always_load_suggestion_data"))
+            {
                 if (options.count("disable_suggestion"))
                     throw Exception(
                             "Command line parameters disable_suggestion (-A) and always_load_suggestion_data cannot be specified simultaneously",
@@ -1726,17 +1875,21 @@ namespace DB {
 
 }
 
-int mainEntryClickHouseClient(int argc, char **argv) {
-    try {
+int mainEntryClickHouseClient(int argc, char **argv)
+{
+    try
+    {
         DB::Client client;
         client.init(argc, argv);//注意客户端需要先执行这里的client.init()方法
         return client.run();
     }
-    catch (const boost::program_options::error &e) {
+    catch (const boost::program_options::error &e)
+    {
         std::cerr << "Bad arguments: " << e.what() << std::endl;
         return 1;
     }
-    catch (...) {
+    catch (...)
+    {
         std::cerr << DB::getCurrentExceptionMessage(true) << std::endl;
         return 1;
     }

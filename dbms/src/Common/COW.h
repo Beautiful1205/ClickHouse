@@ -64,8 +64,10 @@
   * This is the case for string implementations.
   *
   * In contrast, COW is intended for the cases when you need to share states of large objects,
-  * (when you usually will use std::shared_ptr) but you also want precise control over modification
-  * of this shared state.
+  * (when you usually will use std::shared_ptr) but you also want precise control over modification of this shared state.
+  *
+  * COW在针对小对象或隐式复制的时候性能较差(如针对字符串的应用)
+  * COW是为需要 共享大型对象状态且对其进行精确控制 的情况而设计的
   *
   * Caveats:
   * - after a call to 'mutate' method, you can still have a reference to immutable ptr somewhere.

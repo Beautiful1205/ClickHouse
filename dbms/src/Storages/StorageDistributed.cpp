@@ -78,9 +78,11 @@ namespace DB {
             return modified_query_ast;
         }
 
-/// The columns list in the original INSERT query is incorrect because inserted blocks are transformed
-/// to the form of the sample block of the Distributed table. So we rewrite it and add all columns from
-/// the sample block instead.
+        /// The columns list in the original INSERT query is incorrect,
+        /// because inserted blocks are transformed to the form of the sample block of the Distributed table.
+        /// So we rewrite it and add all columns from the sample block instead.
+        //分布式表不存储数据, 数据最终都是被存储到物理表中的. 但是INSERT SQL中的列都是分布式表的, 所以在这一步重写这些列并放到sample block中.
+        //这一步相当于是在对INSERT SQL的AST进行修改
         ASTPtr createInsertToRemoteTableQuery(const std::string &database, const std::string &table,
                                               const Block &sample_block_non_materialized) {
             auto query = std::make_shared<ASTInsertQuery>();
@@ -300,8 +302,7 @@ namespace DB {
         }
 
         //重点方法
-        return ClusterProxy::executeQuery(
-                select_stream_factory, cluster, modified_query_ast, context, settings);
+        return ClusterProxy::executeQuery(select_stream_factory, cluster, modified_query_ast, context, settings);
     }
 
 

@@ -134,8 +134,7 @@ private:
 
         // output data
         Array params_row;
-        AggregateFunctionPtr bitmap_function
-            = AggregateFunctionFactory::instance().get(AggregateFunctionGroupBitmapData<UInt32>::name(), argument_types, params_row);
+        AggregateFunctionPtr bitmap_function = AggregateFunctionFactory::instance().get(AggregateFunctionGroupBitmapData<UInt32>::name(), argument_types, params_row);
         auto col_to = ColumnAggregateFunction::create(bitmap_function);
         col_to->reserve(offsets.size());
 
@@ -580,9 +579,11 @@ private:
         for (size_t i = 0; i < input_rows_count; ++i)
         {
             col_to->insertFrom(columns[0]->getData()[i]);
+
+            //reinterpret_cast<new_type> (expression)
+            //reinterpret_cast运算符是用来处理无关类型之间的转换. 它会产生一个新的值, 这个值会有与原始参数（expression）有完全相同的比特位。
             AggregateFunctionGroupBitmapData<T> & toBd = *reinterpret_cast<AggregateFunctionGroupBitmapData<T> *>(col_to->getData()[i]);
-            const AggregateFunctionGroupBitmapData<T> & bd2
-                = *reinterpret_cast<const AggregateFunctionGroupBitmapData<T> *>(columns[1]->getData()[i]);
+            const AggregateFunctionGroupBitmapData<T> & bd2 = *reinterpret_cast<const AggregateFunctionGroupBitmapData<T> *>(columns[1]->getData()[i]);
             Impl<T>::apply(toBd, bd2);
         }
         block.getByPosition(result).column = std::move(col_to);

@@ -166,7 +166,9 @@ public:
 };
 
 
-/** Converts numberic value of any type to specified type. */
+/** Converts numberic value of any type to specified type.
+  * 将任何类型的数值转换为指定类型
+  */
 template <typename T>
 class FieldVisitorConvertToNumber : public StaticVisitor<T>
 {

@@ -62,47 +62,67 @@ using MappedAsof =      WithFlags<AsofRowRefs, false>;
 
 }
 
-/** Data structure for implementation of JOIN.
+/** Data structure for implementation of JOIN. 实现JOIN的数据结构. 本质上是一个hash表
   * It is just a hash table: keys -> rows of joined ("right") table.
-  * Additionally, CROSS JOIN is supported: instead of hash table, it use just set of blocks without keys.
+  * Additionally, CROSS JOIN is supported: instead of hash table, it use just set of blocks without keys. (CROSS JOIN的实现不是用的hash表, 就是一个block的集合)
   *
+  * JOIN共包含9种类型:
   * JOIN-s could be of nine types: ANY/ALL × LEFT/INNER/RIGHT/FULL, and also CROSS.
   *
   * If ANY is specified - then select only one row from the "right" table, (first encountered row), even if there was more matching rows.
   * If ALL is specified - usual JOIN, when rows are multiplied by number of matching rows from the "right" table.
-  * ANY is more efficient.
+  * ANY is more efficient.  ANY的效率更高
   *
+  * INNNER JOIN: 只保留能和右表match的行
   * If INNER is specified - leave only rows that have matching rows from "right" table.
+  *
+  * LEFT JOIN: 保留能和右表match的行; 对于不能和右表match的行, 填充右表的默认值
   * If LEFT is specified - in case when there is no matching row in "right" table, fill it with default values instead.
+  *
+  * RIGHT JOIN: 先按照INNER JOIN执行, 保留能和右表match的行;
+  *             同时要记录下右表中的哪些行已联接.
+  *             最后, 添加右表中未联接的行, 填充左表的默认值
   * If RIGHT is specified - first process as INNER, but track what rows from the right table was joined,
   *  and at the end, add rows from right table that was not joined and substitute default values for columns of left table.
+  *
+  * FULL JOIN: 先按照LEFT JOIN执行, 保留能和右表match的行; 对于不能和右表match的行, 填充右表的默认值;
+  *            同时要跟踪右表中的哪些行已联接.
+  *            最后, 添加右表中未联接的行, 填充左表的默认值
   * If FULL is specified - first process as LEFT, but track what rows from the right table was joined,
   *  and at the end, add rows from right table that was not joined and substitute default values for columns of left table.
   *
-  * Thus, LEFT and RIGHT JOINs are not symmetric in terms of implementation.
+  * Thus, LEFT and RIGHT JOINs are not symmetric in terms of implementation. 因此, 左连接和右连接在实现方面是不对称的
   *
+  * 仅支持等值联接, 不支持其他类型的联接
   * All JOINs (except CROSS) are done by equality condition on keys (equijoin).
   * Non-equality and other conditions are not supported.
   *
+  *
   * Implementation:
   *
+  * 使用右表在内存中构建hash表(map). 详见insertFromBlock()方法
   * 1. Build hash table in memory from "right" table.
   * This hash table is in form of keys -> row in case of ANY or keys -> [rows...] in case of ALL.
   * This is done in insertFromBlock method.
   *
+  * 处理左表, 从map中寻找可以和右表join的行. 详见joinBlock()方法
   * 2. Process "left" table and join corresponding rows from "right" table by lookups in the map.
   * This is done in joinBlock methods.
   *
+  * ANY LEFT JOIN 的处理过程中, 会根据匹配的右表的值或右表的默认值构造新的列. 左表的行数不发生变化, 是最简单的形式.
   * In case of ANY LEFT JOIN - form new columns with found values or default values.
   * This is the most simple. Number of rows in left table does not change.
   *
+  * ANY INNER JOIN 的处理过程中, 会根据匹配的右表的值构造新的列. 会过滤掉左表中没有匹配上的行
   * In case of ANY INNER JOIN - form new columns with found values,
   *  and also build a filter - in what rows nothing was found.
   * Then filter columns of "left" table.
   *
+  * ALL ... JOIN 的处理过程中, 会根据匹配的右表的值构造新的列. 同时会保存一个偏移量, 记录需要复制填充多少次左表中的对应行, 进而复制左表的列
   * In case of ALL ... JOIN - form new columns with all found rows,
   *  and also fill 'offsets' array, describing how many times we need to replicate values of "left" table.
   * Then replicate columns of "left" table.
+  *
   *
   * How Nullable keys are processed:
   *
@@ -356,7 +376,7 @@ private:
     /// Names of key columns (columns for equi-JOIN) in "right" table (in the order they appear in USING clause).
     const Names key_names_right;
 
-    /// Substitute NULLs for non-JOINed rows.
+    /// Substitute NULLs for non-JOINed rows. 用空值替换未联接的行
     bool use_nulls;
 
     /// Overwrite existing values when encountering the same key again

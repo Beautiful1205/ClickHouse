@@ -118,6 +118,14 @@ readVarUInt(T & x, ReadBuffer & istr)
     throw Exception("Attempt to read after eof", ErrorCodes::ATTEMPT_TO_READ_AFTER_EOF);
 }
 
+/** 举例, 接收到 \x94\xa9\x03 (1001 0100 1010 1001 0000 0011) 后是如何读取的呢？
+    fast = true
+    i = 0, x = 0, byte = 1001 0100, (byte & 0x7F) << (7 * 0) = 1001 0100, x = 1001 0100
+    i = 1, x = 1001 0100, byte = 1010 1001, (byte & 0x7F) << (7 * 1) = 0101 0100 1000 0000, x = 0101 0100 1001 0100
+    i = 2, x = 0101 0100 1001 0100, byte = 0000 0011, (byte & 0x7F) << (7 * 1) = 1100 0000 0000 0000, x = 1101 0100 1001 0100
+
+    x = 1101 0100 1001 0100 = 54420
+*/
 template <bool fast>
 inline void readVarUIntImpl(UInt64 & x, ReadBuffer & istr)
 {
@@ -139,7 +147,7 @@ inline void readVarUIntImpl(UInt64 & x, ReadBuffer & istr)
 
 inline void readVarUInt(UInt64 & x, ReadBuffer & istr)
 {
-    if (istr.buffer().end() - istr.position() >= 9)//内存缓冲区中剩余的未读取的内容大于9个字节
+    if (istr.buffer().end() - istr.position() >= 9)//working_buffer中剩余的未读取的内容大于9个字节 (一般istr.position()=0吧, 即working_buffer的中待读取的内容大于9个字节)
         return readVarUIntImpl<true>(x, istr);
     return readVarUIntImpl<false>(x, istr);
 }
@@ -181,24 +189,24 @@ inline const char * readVarUInt(UInt64 & x, const char * istr, size_t size)
 
 /**举例:
    "54420"这个数字, 二进制形式是1101 0100 1001 0100,
-   x = 1101 0100 1001 0100, i = 0, byte = 1001 0100 = \x94
-   x = 0000 0001 1010 1001, i = 1, byte = 1010 1001 = \xa9
-   x = 0000 0000 0000 0011, i = 2, byte = 0000 0011 = \x03
-   所以对于数字"54420", 会转化成 \x94\xa9\x03 进行传输
+   i = 0, x = 1101 0100 1001 0100, byte = 0001 0100, x > 0x7F, byte = 1001 0100 = \x94
+   i = 1, x = 0000 0001 1010 1001, byte = 0010 1001, x > 0x7F, byte = 1010 1001 = \xa9
+   i = 2, x = 0000 0000 0000 0011, byte = 0000 0011, x <= 0x7F, byte = 0000 0011 = \x03
+   所以对于数字"54420", 会转化成 \x94\xa9\x03 进行传输 (1001 0100 1010 1001 0000 0011)
 */
 inline void writeVarUInt(UInt64 x, WriteBuffer & ostr)
 {
     for (size_t i = 0; i < 9; ++i)
     {
         uint8_t byte = x & 0x7F;
-        if (x > 0x7F)//x>0x7F 表示x的位数多于7位, 需要标记一下(将第8位置为1), 然后再进行后面的无符号右移7位
+        if (x > 0x7F)//x > 0x7F 表示x的位数多于7位, 需要标记一下(将第8位置为1), 然后再进行后面的无符号右移7位
             byte |= 0x80;
 
-        ostr.nextIfAtEnd();
+        ostr.nextIfAtEnd();//检查working_buffer是否被写满了, 如果写满了则执行next()把数据写到下一层目标(写完则pos位置回到begin处); 如果没写满, 则在pos的位置写入数据
         *ostr.position() = byte;
         ++ostr.position();
 
-        x >>= 7;
+        x >>= 7;//x右移7位
         if (!x)
             return;
     }

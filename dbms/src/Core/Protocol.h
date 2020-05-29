@@ -98,9 +98,8 @@ namespace DB {
             enum Enum {
                 Hello = 0,               /// Name, version, revision, default DB
                 Query = 1,               /// Query id, query settings, stage up to which the query must be executed,
-                /// whether the compression must be used,
-                /// query text (without data for INSERTs).
-                        Data = 2,                /// A block of data (compressed or not).
+                                            /// whether the compression must be used, query text (without data for INSERTs).
+                Data = 2,                /// A block of data (compressed or not).
                 Cancel = 3,              /// Cancel the query execution.
                 Ping = 4,                /// Check that connection to the server is alive.
                 TablesStatusRequest = 5, /// Check status of tables on the server.

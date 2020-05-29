@@ -166,9 +166,14 @@ inline void writeString(const StringRef & ref, WriteBuffer & buf)
 }
 
 
-/** Writes a C-string without creating a temporary object. If the string is a literal, then `strlen` is executed at the compilation stage.
+/** Writes a C-string without creating a temporary object.
+ *  If the string is a literal, then `strlen` is executed at the compilation stage.
   * Use when the string is a literal.
   */
+/** 在不创建临时对象的情况下写入C字符串. 如果字符串是文本, strlen(s)函数是在变异阶段进行的.
+  *
+  * 当字符串是文本时会使用到writeCString()函数. 这里的write()方法就是WriteBuffer中的write()方法
+ */
 #define writeCString(s, buf) \
     (buf).write((s), strlen(s))
 

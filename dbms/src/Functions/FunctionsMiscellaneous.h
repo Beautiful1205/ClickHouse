@@ -10,7 +10,7 @@
 
 namespace DB
 {
-
+///执行表达式. 用于lambda函数实现. 用于不能从工厂创建的函数
 /// Executes expression. Uses for lambda functions implementation. Can't be created from factory.
 class FunctionExpression : public IFunctionBase, public IPreparedFunction,
                            public std::enable_shared_from_this<FunctionExpression>

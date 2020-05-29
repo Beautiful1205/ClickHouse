@@ -33,7 +33,12 @@ public:
     /** write the data in the buffer (from the beginning of the buffer to the current position);
       * set the position to the beginning; throw an exception, if something is wrong
       *
-      * 在缓冲区中写入数据(从缓冲区的开始到当前位置); 将位置设置为开头; 如果有问题, 则抛出异常
+      * 将buffer中的数据写到下一层目标中
+      * 将pos指针移动到working_buffer的起始位置; 如果有问题, 则抛出异常
+      *
+      * @张晓 简单讲, next()是清理working_buffer的作用。清理后将 pos 指针移动到 begin_pos
+      * 比如 将working_buffer中的数据，从begin_pos 到pos位置的数据，逐步写入到文件
+      * 比如 从文件中读取一批数据到buffer中，将pos移动到begin_pos位置，让上层读取
       */
     inline void next()
     {
@@ -65,16 +70,17 @@ public:
 
     inline void nextIfAtEnd()
     {
-        if (!hasPendingData())
+        if (!hasPendingData())//判断buffer是否被写满了(pos == working_buffer.end())，如果写满了 则调 用next()方法，将buffer中的数据写到下一层目标中
             next();
     }
 
-
+    /// 同ReadBuffer的read方法,
+    /// 从from中拷贝n个字节写到buffer中
     void write(const char * from, size_t n)
     {
         size_t bytes_copied = 0;
 
-        while (bytes_copied < n)
+        while (bytes_copied < n) //判断是否已经拷贝了n个字节
         {
             nextIfAtEnd();
             size_t bytes_to_copy = std::min(static_cast<size_t>(working_buffer.end() - pos), n - bytes_copied);

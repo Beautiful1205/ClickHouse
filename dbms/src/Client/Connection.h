@@ -85,7 +85,7 @@ namespace DB {
         }
 
 
-        //server服务端发给client端的数据包定义
+        //server服务端发给client端的数据包
         /// Packet that could be received from server.
         struct Packet {
             UInt64 type;

@@ -89,6 +89,7 @@ namespace DB {
         } else if (query->as<ASTInsertQuery>()) {
             ProfileEvents::increment(ProfileEvents::InsertQuery);
             /// readonly is checked inside InterpreterInsertQuery
+            //If insert_allow_materialized_columns setting is enabled, Allow materialized columns in INSERT. 允许插入物化列???
             bool allow_materialized = static_cast<bool>(context.getSettingsRef().insert_allow_materialized_columns);
             return std::make_unique<InterpreterInsertQuery>(query, context, allow_materialized);
         } else if (query->as<ASTCreateQuery>()) {

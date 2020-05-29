@@ -14,6 +14,7 @@ class ReplicatedMergeTreeBlockOutputStream;
 
 
 /** Writes data to the specified table and to all dependent materialized views.
+  * 将数据写入指定的表和所有依赖的物化视图中
   */
 class PushingToViewsBlockOutputStream : public IBlockOutputStream
 {

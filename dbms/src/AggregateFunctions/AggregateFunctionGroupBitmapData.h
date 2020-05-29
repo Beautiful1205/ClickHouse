@@ -11,8 +11,8 @@
 namespace DB
 {
 /**
-  * For a small number of values - an array of fixed size "on the stack".
-  * For large, roaring_bitmap_t is allocated.
+  * For a small number of values - an array of fixed size "on the stack". 对于少量的值(small_set_size = 32), 在堆栈上分配固定大小的数组进行存储
+  * For large, roaring_bitmap_t is allocated.                             对于大量的值, 使用RoaringBitmap进行存储
   * For a description of the roaring_bitmap_t, see: https://github.com/RoaringBitmap/CRoaring
   */
 template <typename T, UInt8 small_set_size>
@@ -43,7 +43,7 @@ public:
             roaring_bitmap_free(rb);
     }
 
-    void add(T value)
+    void add(T value) //向bitmap中添加元素的时候, 根据bitmap的不同实现方式去判断.
     {
         if (isSmall())
         {
@@ -80,7 +80,7 @@ public:
         }
     }
 
-    void read(DB::ReadBuffer & in)
+    void read(DB::ReadBuffer & in)  //二进制格式读
     {
         bool is_large;
         readBinary(is_large, in);
@@ -96,7 +96,8 @@ public:
             small.read(in);
     }
 
-    void write(DB::WriteBuffer & out) const
+    // 函数后面加const, 表示函数不可以修改class的成员
+    void write(DB::WriteBuffer & out) const //二进制格式写
     {
         writeBinary(isLarge(), out);
 
@@ -128,6 +129,7 @@ public:
 
     /**
      * Computes the intersection between two bitmaps
+     * bitmapAnd的实现
      */
     void rb_and(const RoaringBitmapWithSmallSet & r1)
     {
@@ -172,6 +174,7 @@ public:
 
     /**
      * Computes the union between two bitmaps.
+     * bitmapOr的实现
      */
     void rb_or(const RoaringBitmapWithSmallSet & r1) { merge(r1); }
 
@@ -190,6 +193,7 @@ public:
 
     /**
      * Computes the difference (andnot) between two bitmaps
+     * bitmapAndNot的实现
      */
     void rb_andnot(const RoaringBitmapWithSmallSet & r1)
     {
@@ -234,6 +238,7 @@ public:
 
     /**
      * Computes the cardinality of the intersection between two bitmaps.
+     * bitmapAndCardinality的实现
      */
     UInt64 rb_and_cardinality(const RoaringBitmapWithSmallSet & r1) const
     {
@@ -427,6 +432,7 @@ public:
 
     /**
      * Convert elements to integer array, return number of elements
+     * 用于bitmapToArray函数, 将bitmap以数组的形式输出
      */
     template <typename Element>
     UInt64 rb_to_array(PaddedPODArray<Element> & res_data) const
@@ -456,6 +462,7 @@ public:
 
 private:
     /// To read and write the DB Buffer directly, migrate code from CRoaring
+    //拷贝了CRoaring的代码, 用于直接读写DB Buffer
     void db_roaring_bitmap_add_many(DB::ReadBuffer & dbBuf, roaring_bitmap_t * r, size_t n_args)
     {
         void * container = NULL; // hold value of last container touched

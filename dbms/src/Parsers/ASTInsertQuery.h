@@ -18,7 +18,10 @@ namespace DB {
         ASTPtr table_function;
         ASTPtr settings_ast;
 
-        // Set to true if the data should only be inserted into attached views
+        /// Set to true if the data should only be inserted into attached views
+        // no_destination = true, 则数据不需要insert到表中 且 只需要insert到视图中
+        // no_destination = false, 则数据需要insert到表中 且 需要insert到视图中
+        //所以是先向view中写数据(如果有view的话), 再向表中写数据么？？？
         bool no_destination = false;
 
         /// Data to insert

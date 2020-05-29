@@ -27,7 +27,6 @@ namespace DB {
 /// It's safe to access children without mutex as long as these methods are called before first call to `read()` or `readPrefix()`.
 //只要在第一次调用`read()` 或者 `readPrefix()`方法之前调用该类中的其他方法, 就可以调用不带互斥锁的子对象而不必担心安全问题.
 
-
     Block IBlockInputStream::read() {
         if (total_rows_approx) {
             progressImpl(Progress(0, 0, total_rows_approx));
@@ -481,6 +480,7 @@ namespace DB {
     }
 
 
+    //用于打印执行计划pipeline, 先调用dumpTree()方法, 再调用read()和readPrefix()方法
     void IBlockInputStream::dumpTree(std::ostream &ostr, size_t indent, size_t multiplier) const {
         ostr << String(indent, ' ') << getName();
         if (multiplier > 1)

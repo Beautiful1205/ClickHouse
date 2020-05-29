@@ -10,6 +10,9 @@ namespace DB
 
 /// Visits AST tree in depth, call functions for nodes according to Matcher type data.
 /// You need to define Data, visit() and needChildVisit() in Matcher class.
+
+///深度遍历AST, 根据匹配类型数据调用节点函数。
+///您需要在Matcher类中定义Data、visit()和needChildVisit()
 template <typename Matcher, bool _top_to_bottom>
 class InDepthNodeVisitor
 {
@@ -49,6 +52,7 @@ private:
 };
 
 /// Simple matcher for one node type without complex traversal logic.
+//适用于无复杂遍历逻辑的单节点的matcher
 template <typename _Data, bool _visit_children = true>
 class OneTypeMatcher
 {

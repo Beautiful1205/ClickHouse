@@ -247,7 +247,7 @@ using SettingOverflowModeGroupBy = SettingEnum<OverflowMode, SettingOverflowMode
 
 
 /// The setting for executing distributed subqueries inside IN or JOIN sections.
-enum class DistributedProductMode
+enum class DistributedProductMode    //IN和JOIN子句中分布式子查询的执行方式
 {
     DENY = 0,    /// Disable
     LOCAL,       /// Convert to local query

@@ -57,7 +57,7 @@ void BackgroundProcessingPoolTaskInfo::wake()
     }
 
     /// Note that if all threads are currently do some work, this call will not wakeup any thread.
-    pool.wake_event.notify_one();
+    pool.wake_event.notify_one();///如果所有merge线程当前都在工作(没有空余线程), 则此调用不会唤醒任何线程
 }
 
 

@@ -3,25 +3,22 @@
 #include <AggregateFunctions/FactoryHelpers.h>
 
 
-namespace DB
-{
+namespace DB {
 
-namespace
-{
+    namespace {
 
-AggregateFunctionPtr createAggregateFunctionCount(const std::string & name, const DataTypes & argument_types, const Array & parameters)
-{
-    assertNoParameters(name, parameters);
+        AggregateFunctionPtr createAggregateFunctionCount(const std::string &name, const DataTypes &argument_types,
+                                                          const Array &parameters) {
+            assertNoParameters(name, parameters);
 
-    /// 'count' accept any number of arguments and (in this case of non-Nullable types) simply ignore them.
-    return std::make_shared<AggregateFunctionCount>(argument_types);
-}
+            /// 'count' accept any number of arguments and (in this case of non-Nullable types) simply ignore them.
+            return std::make_shared<AggregateFunctionCount>(argument_types);
+        }
 
-}
+    }
 
-void registerAggregateFunctionCount(AggregateFunctionFactory & factory)
-{
-    factory.registerFunction("count", createAggregateFunctionCount, AggregateFunctionFactory::CaseInsensitive);
-}
+    void registerAggregateFunctionCount(AggregateFunctionFactory &factory) {
+        factory.registerFunction("count", createAggregateFunctionCount, AggregateFunctionFactory::CaseInsensitive);
+    }
 
 }

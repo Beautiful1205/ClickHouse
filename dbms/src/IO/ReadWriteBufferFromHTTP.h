@@ -24,6 +24,7 @@
 namespace DB
 {
 /** Perform HTTP POST request and provide response to read.
+  * 执行HTTP POST请求并提供读取响应
   */
 
 namespace detail

@@ -221,6 +221,7 @@ namespace DB {
             return nullptr;
 
         const ASTTablesInSelectQueryElement *joined_table = nullptr;
+        //遍历TablesInSelectQuery节点的所有子节点TablesInSelectQueryElement, 找到包含TableJoin节点的TablesInSelectQueryElement. 则这个找到的是JOIN操作的右表(节点中包含了JOIN条件)
         for (const auto &child : tables_in_select_query.children) {
             const auto &tables_element = child->as<ASTTablesInSelectQueryElement &>();
             if (tables_element.table_join) {

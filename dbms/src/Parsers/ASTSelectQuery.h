@@ -50,6 +50,7 @@ namespace DB {
 
         ASTPtr &refHaving() { return getExpression(Expression::HAVING); }
 
+        //函数前加const, 表示函数的返回值为const, 不可修改
         const ASTPtr with() const { return getExpression(Expression::WITH); }
 
         const ASTPtr select() const { return getExpression(Expression::SELECT); }

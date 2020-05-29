@@ -17,6 +17,12 @@ using BlockOutputStreamPtr = std::shared_ptr<IBlockOutputStream>;
   * The query could be executed without wrapping it in an empty BlockInputStream,
   *  but the progress of query execution and the ability to cancel the query would not work.
   */
+/** 空的stream
+  * 但在第一次尝试读取时, 会将数据从input复制到output;
+  * 这是执行查询INSERT SELECT所必需的: 这个query执行过程中会复制数据, 但不返回
+  * 不必将这个query封装在空的BlockInputStream中, 这个query也能执行,
+  * 但是这个query执行的进度将不显示, 也不能取消query.
+  */
 class NullAndDoCopyBlockInputStream : public IBlockInputStream
 {
 public:

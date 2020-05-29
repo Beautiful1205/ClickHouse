@@ -37,7 +37,7 @@ protected:
 private:
     ExpressionActionsPtr expression;
     Block header;
-    ssize_t filter_column;
+    ssize_t filter_column;//需要过滤的列的位置
 
     ConstantFilterDescription constant_filter_description;
 

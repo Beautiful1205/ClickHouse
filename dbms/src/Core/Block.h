@@ -14,11 +14,11 @@
 
 namespace DB {
 
-/** Container for set of columns for bunch of rows in memory.
-  * This is unit of data processing.
+/** Container for set of columns for bunch of rows in memory.   Block是按列存储的多行数据在内存中存储容器
+  * This is unit of data processing.                            Block是数据处理的基本单元. 包含具体的列的数据, 也包含数据类型和列名(原始名称/临时名称)
   * Also contains metadata - data types of columns and their names
   *  (either original names from a table, or generated names during temporary calculations).
-  * Allows to insert, remove columns in arbitrary position, to change order of columns.
+  * Allows to insert, remove columns in arbitrary position, to change order of columns.   允许在任意位置插入、删除列以更改列的顺序
   */
 
     class Context;

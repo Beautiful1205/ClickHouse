@@ -339,6 +339,7 @@ namespace DB {
 
     public:
         /** Create empty column for corresponding type.
+          * 为对应的类型创建空列
           */
         virtual MutableColumnPtr createColumn() const = 0;
 
@@ -518,7 +519,7 @@ namespace DB {
     };
 
 
-/// Some sugar to check data type of IDataType
+/// Some sugar to check data type of IDataType  范型/语法糖
     struct WhichDataType {
         TypeIndex idx;
 

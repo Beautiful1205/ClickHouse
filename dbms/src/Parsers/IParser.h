@@ -51,6 +51,14 @@ namespace DB {
           *  or what this parser parse if parsing was successful.
           * The string to which the [begin, end) range is included may be not 0-terminated.
           */
+        /** 从位置pos处开始解析一段内容, 内容不要超出行尾(即 内容结尾处在[end, 行尾之后的位置]之间),
+          * 将指针pos移至可以解析的最大位置.
+          * 如果解析成功, 则返回true, 如果有必要, 可将结果保存在node中返回; 否则解析失败, 返回false;
+
+          * 将 期望在maximum position处解析的内容 保存到expected中, 如果解析不成功, 则可以解析到最大位置; 如果解析成功, 则可以解析到该解析器解析的内容。
+          *
+          * 注意: [begin, end）范围的字符串不能以0结尾
+          */
         virtual bool parse(Pos &pos, ASTPtr &node, Expected &expected) = 0;
 
         //ignore方法的作用应该是检测当前解析的token是否是关键字, 如果是关键字则返回true, 如果不是关键字则返回false

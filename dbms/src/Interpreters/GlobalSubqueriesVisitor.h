@@ -49,6 +49,7 @@ public:
         void addExternalStorage(ASTPtr & ast, bool set_alias = false)
         {
             /// With nondistributed queries, creating temporary tables does not make sense.
+            // 对于非分布式查询，创建临时表没有意义
             if (!is_remote)
                 return;
 
@@ -79,7 +80,7 @@ public:
                     return;
             }
 
-            /// Generate the name for the external table.
+            /// Generate the name for the external table. 生成临时表的表名
             String external_table_name = "_data" + toString(external_table_id);
             while (external_tables.count(external_table_name))
             {
@@ -87,11 +88,13 @@ public:
                 external_table_name = "_data" + toString(external_table_id);
             }
 
+            //构建子查询的执行器interpreter
             auto interpreter = interpretSubquery(subquery_or_table_name, context, subquery_depth, {});
 
             Block sample = interpreter->getSampleBlock();
             NamesAndTypesList columns = sample.getNamesAndTypesList();
 
+            //使用Memory引擎在内存中建立(外部)临时表
             StoragePtr external_storage = StorageMemory::create(external_table_name, ColumnsDescription{columns});
             external_storage->startup();
 
@@ -100,7 +103,7 @@ public:
                 * This temporary table will go to the remote server, and on its side,
                 *  instead of doing a subquery, you just need to read it.
                 */
-
+            // 用临时表替换子查询. query将被以这种形式发送远程服务器. 在远程服务器上, 只需要读取临时表中的数据即可, 而不需要执行子查询
             auto database_and_table_name = createTableIdentifier("", external_table_name);
             if (set_alias)
             {
@@ -123,14 +126,13 @@ public:
                 ast = database_and_table_name;
 
             external_tables[external_table_name] = external_storage;
-            subqueries_for_sets[external_table_name].source = interpreter->execute().in;
+            subqueries_for_sets[external_table_name].source = interpreter->execute().in;//调用执行器的execute()方法得到block stream
             subqueries_for_sets[external_table_name].table = external_storage;
 
             /** NOTE If it was written IN tmp_table - the existing temporary (but not external) table,
-            *  then a new temporary table will be created (for example, _data1),
-            *  and the data will then be copied to it.
-            * Maybe this can be avoided.
-            */
+              *  then a new temporary table will be created (for example, _data1), and the data will then be copied to it.
+              * Maybe this can be avoided.
+              */
         }
     };
 
@@ -173,6 +175,7 @@ private:
 };
 
 /// Converts GLOBAL subqueries to external tables; Puts them into the external_tables dictionary: name -> StoragePtr.
+// 将全局子查询转换为外部表; 将它们放入external_tables字典中: name->StoragePtr。
 using GlobalSubqueriesVisitor = InDepthNodeVisitor<GlobalSubqueriesMatcher, false>;
 
 }

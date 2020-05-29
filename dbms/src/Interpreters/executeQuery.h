@@ -35,8 +35,7 @@ namespace DB {
 /// * if present, write INSERT data into BlockIO::out
 /// * then read the results from BlockIO::in.
 ///
-/// If the query doesn't involve data insertion or returning of results, out and in respectively
-/// will be equal to nullptr.
+/// If the query doesn't involve data insertion or returning of results, out and in respectively will be equal to nullptr.
 ///
 /// Correctly formatting the results (according to INTO OUTFILE and FORMAT sections)
 /// must be done separately.

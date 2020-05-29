@@ -173,7 +173,7 @@ ExpressionAction ExpressionAction::ordinaryJoin(
 
 void ExpressionAction::prepare(Block & sample_block, const Settings & settings)
 {
-    // std::cerr << "preparing: " << toString() << std::endl;
+     std::cerr << "preparing: " << toString() << std::endl;//preparing注释
 
     /** Constant expressions should be evaluated, and put the result in sample_block.
       */
@@ -198,21 +198,24 @@ void ExpressionAction::prepare(Block & sample_block, const Settings & settings)
 
             size_t result_position = sample_block.columns();
             sample_block.insert({nullptr, result_type, result_name});
+            //prepare方法 // 这里应该是先准备一个函数的可执行对象, 再调用该函数对象的execute()方法执行
             function = function_base->prepare(sample_block, arguments, result_position);
 
             if (auto * prepared_function = dynamic_cast<PreparedFunctionImpl *>(function.get()))
                 prepared_function->createLowCardinalityResultCache(settings.max_threads);
 
+            /// If all arguments are constants, and function is suitable to be executed in 'prepare' stage - execute function.
+            /// But if we compile expressions compiled version of this function maybe placed in cache,
+            /// so we don't want to unfold non deterministic functions
             bool compile_expressions = false;
 #if USE_EMBEDDED_COMPILER
             compile_expressions = settings.compile_expressions;
 #endif
-            /// If all arguments are constants, and function is suitable to be executed in 'prepare' stage - execute function.
-            /// But if we compile expressions compiled version of this function maybe placed in cache,
-            /// so we don't want to unfold non deterministic functions
+
             if (all_const && function_base->isSuitableForConstantFolding() && (!compile_expressions || function_base->isDeterministic()))
             {
-                function->execute(sample_block, arguments, result_position, sample_block.rows(), true);
+                //execute方法
+                function->execute(sample_block, arguments, result_position, sample_block.rows(), true);//重点//
 
                 /// If the result is not a constant, just in case, we will consider the result as unknown.
                 ColumnWithTypeAndName & col = sample_block.safeGetByPosition(result_position);
@@ -360,6 +363,7 @@ void ExpressionAction::execute(Block & block, bool dry_run) const
             ProfileEvents::increment(ProfileEvents::FunctionExecute);
             if (is_function_compiled)
                 ProfileEvents::increment(ProfileEvents::CompiledFunctionExecute);
+            //execute()方法
             function->execute(block, arguments, num_columns_without_result, input_rows_count, dry_run);
 
             break;
@@ -642,7 +646,7 @@ void ExpressionActions::addInput(const NameAndTypePair & column)
 
 void ExpressionActions::add(const ExpressionAction & action, Names & out_new_columns)
 {
-    addImpl(action, out_new_columns);
+    addImpl(action, out_new_columns);//重点//
 }
 
 void ExpressionActions::add(const ExpressionAction & action)
@@ -679,6 +683,7 @@ void ExpressionActions::addImpl(ExpressionAction action, Names & new_names)
         for (const auto & name_with_alias : action.projection)
             new_names.emplace_back(name_with_alias.second);
 
+    //重点//
     action.prepare(sample_block, settings);
     actions.push_back(action);
 }
@@ -1114,8 +1119,7 @@ BlockInputStreamPtr ExpressionActions::createStreamWithNonJoinedDataIfFullOrRigh
 {
     for (const auto & action : actions)
         if (action.join && isRightOrFull(action.join->getKind()))
-            return action.join->createStreamWithNonJoinedRows(
-                source_header, action.join_key_names_left, action.columns_added_by_join, max_block_size);
+            return action.join->createStreamWithNonJoinedRows(source_header, action.join_key_names_left, action.columns_added_by_join, max_block_size);
 
     return {};
 }

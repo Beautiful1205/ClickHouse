@@ -150,7 +150,7 @@ namespace DB {
         ASTPtr ast;
         const char *query_end;
 
-        /// Don't limit the size of internal queries.
+        /// Don't limit the size of internal queries. 对于internal queries, 不限制SQL的长度(byte)
         size_t max_query_size = 0;
         if (!internal)
             max_query_size = settings.max_query_size;
@@ -164,9 +164,11 @@ namespace DB {
 
             auto *insert_query = ast->as<ASTInsertQuery>();
 
+            //如果是INSERT query且有额外的setting, 设置这些settings
             if (insert_query && insert_query->settings_ast)
                 InterpreterSetQuery(insert_query->settings_ast, context).executeForCurrentContext();
 
+            //如果是INSERT query且包含具体数据
             if (insert_query && insert_query->data) {
                 query_end = insert_query->data;
                 insert_query->has_tail = has_query_tail;
@@ -184,7 +186,8 @@ namespace DB {
             throw;
         }
 
-        /// Copy query into string. It will be written to log and presented in processlist. If an INSERT query, string will not include data to insertion.
+        /// Copy query into string. It will be written to log and presented in processlist.
+        /// If an INSERT query, string will not include data to insertion.
         // 将SQL复制到字符串query中。
         // query语句将被写入日志并显示在processlist中。如果是SQL是insert语句, query中将不包含要插入的数据。
         String query(begin, query_end);// SQL被保存在query这个字符串中(之前应该一直在buffer中)
@@ -203,7 +206,7 @@ namespace DB {
             quota.checkExceeded(current_time);
 
             /// Put query to process list. But don't put SHOW PROCESSLIST query itself.
-            //把query加到process list中. 但是执行SHOW PROCESSLIST这个SQL时, 不把它加到process list中
+            //把query加到process list中. 但是执行SHOW PROCESSLIST/SHOW TABLES 等SQL时, 不把它加到process list中
             ProcessList::EntryPtr process_list_entry;
             if (!internal && !ast->as<ASTShowProcesslistQuery>()) {
                 process_list_entry = context.getProcessList().insert(query, ast.get(), context);
@@ -211,14 +214,23 @@ namespace DB {
             }
 
             /// Load external tables if they were provided
+            //执行回调函数, 从外部表中读取数据
             context.initializeExternalTablesIfSet();
 
             // 根据语法树AST调用InterpreterFactory的get()方法, 得到执行器interpreter
             auto interpreter = InterpreterFactory::get(ast, context, stage);
-            // 执行器调用execute()方法执行, 返回BlockIO
+
+            /** Prepare a request for execution. Return block streams
+              * - the stream into which you can write data to execute the query, if INSERT;
+              * - the stream from which you can read the result of the query, if SELECT and similar;
+              * Or nothing if the request INSERT SELECT (self-sufficient query - does not accept the input data, does not return the result).
+              */
+            // 执行器interpreter调用execute()方法执行, 返回BlockIO (block streams)
             res = interpreter->execute();
             if (auto *insert_interpreter = typeid_cast<const InterpreterInsertQuery *>(&*interpreter))
+            {
                 context.setInsertionTable(insert_interpreter->getDatabaseTable());
+            }
 
             if (process_list_entry) {
                 /// Query was killed before execution. SQL在执行之前被取消了
@@ -233,7 +245,10 @@ namespace DB {
             /// Hold element of process list till end of query execution.
             res.process_list_entry = process_list_entry;
 
-            //这里的in是针对内存来说的, 对于非insert语句, 数据从磁盘反序列化到内存, 这对于内存来说时in. (数据流向是: 磁盘->内存)
+            // 这里的in/out是针对内存来说的,
+            // 对于SELECT语句, res.in != null, res.out = null. 构建了一个可以读取数据的stream.
+            // 对于INSERT语句, res.in = null, res.out != null. 构建了一个可以写入数据的stream.
+            // 对于INSERT SELECT语句, res.in = null, res.out = null.
             if (res.in) {
                 res.in->setProgressCallback(context.getProgressCallback());
                 res.in->setProcessListElement(context.getProcessListElement());
@@ -250,7 +265,7 @@ namespace DB {
                     res.in->setQuota(quota);
                 }
             }
-            //这里的out是针对内存来说的, 对于insert语句, 数据从内存序列化到磁盘, 这对于内存来说时out (数据流向是: 内存->磁盘)
+
             if (res.out) {
                 if (auto stream = dynamic_cast<CountingBlockOutputStream *>(res.out.get())) {
                     stream->setProcessListElement(context.getProcessListElement());
@@ -284,7 +299,7 @@ namespace DB {
                         query_log->add(elem);
                 }
 
-                //SQL执行完成时的回调函数
+                /// SQL执行完成时的回调函数
                 /// Also make possible for caller to log successful query finish and exception during execution.
                 res.finish_callback = [elem, &context, log_queries](IBlockInputStream *stream_in,
                                                                     IBlockOutputStream *stream_out) mutable {
@@ -326,8 +341,8 @@ namespace DB {
                         /// NOTE: INSERT SELECT query contains zero metrics
                         elem.result_rows = stream_in_info.rows;
                         elem.result_bytes = stream_in_info.bytes;
-                    } else if (stream_out) /// will be used only for ordinary INSERT queries  针对insert语句而言的
-                    {
+                    } else if (stream_out){ // 针对insert语句而言的
+                        /// will be used only for ordinary INSERT queries
                         if (auto counting_stream = dynamic_cast<const CountingBlockOutputStream *>(stream_out)) {
                             /// NOTE: Redundancy. The same values could be extracted from process_list_elem->progress_out.query_settings = process_list_elem->progress_in
                             elem.result_rows = counting_stream->getProgress().read_rows;
@@ -358,7 +373,7 @@ namespace DB {
                     }
                 };
 
-                //SQL执行异常时的回调函数
+                /// SQL执行异常时的回调函数
                 res.exception_callback = [elem, &context, log_queries]() mutable {
                     context.getQuota().addError();
 

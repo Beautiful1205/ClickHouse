@@ -10,17 +10,20 @@ namespace DB {
 /** Base class for ReadBuffer and WriteBuffer.
   * Contains common types, variables, and functions.
   *
+  * Read/WriteBuffers 和 istream/ostream 的作用类似, 但是效率更高.
   * ReadBuffer and WriteBuffer are similar to istream and ostream, respectively.
   * They have to be used, because using iostreams it is impossible to effectively implement some operations.
   * For example, using istream, you can not quickly read string values from a tab-separated file,
   *  so that after reading, the position remains immediately after the read value.
-  * (The only option is to call the std::istream::get() function on each byte, but this slows down due to several virtual calls.)
+  * (The only option is to call the std::istream::get() function on each byte, but this slows down due to several virtual calls.) 虚方法调用比较耗时
   *
+  * Read/WriteBuffers可以直接高效的操作internal buffer. 只有一个虚方法nextImpl(), 用到的也比较少.
   * Read/WriteBuffers provide direct access to the internal buffer, so the necessary operations are implemented more efficiently.
   * Only one virtual function nextImpl() is used, which is rarely called:
-  * - in the case of ReadBuffer - fill in the buffer with new data from the source;
-  * - in the case of WriteBuffer - write data from the buffer into the receiver.
+  * - in the case of ReadBuffer - fill in the buffer with new data from the source; 从source读取数据填充到ReadBuffer
+  * - in the case of WriteBuffer - write data from the buffer into the receiver.    在WriteBuffer写数据发送到receiver
   *
+  * Read/WriteBuffer可以独占或不独占一份内存. 不独占的时候, 可以不用复制, 直接读取一块已经存在的内存.
   * Read/WriteBuffer can own or not own an own piece of memory.
   * In the second case, you can effectively read from an already existing piece of memory / std::string without copying it.
   */
@@ -52,7 +55,8 @@ namespace DB {
         };
 
         /** The constructor takes a range of memory to use for the buffer.
-          * offset - the starting point of the cursor. ReadBuffer must set it to the end of the range, and WriteBuffer - to the beginning.
+          * offset - the starting point of the cursor.
+          * ReadBuffer must set it to the end of the range, and WriteBuffer - to the beginning.
           */
         BufferBase(Position ptr, size_t size, size_t offset)
                 : pos(ptr + offset), working_buffer(ptr, ptr + size), internal_buffer(ptr, ptr + size) {}
@@ -73,7 +77,7 @@ namespace DB {
         inline Position &position() { return pos; }
 
         /// offset in bytes of the cursor from the beginning of the buffer
-        /////游标指针距离缓冲区起始位置的字节偏移量
+        /// 指针距离缓冲区起始位置的字节偏移量
         inline size_t offset() const { return size_t(pos - working_buffer.begin()); }
 
         /// How many bytes are available for read/write
@@ -105,6 +109,7 @@ namespace DB {
 
         /** How many bytes have been read/written, not counting those that are now in the buffer.
           * (counting those that were already used and "removed" from the buffer)
+          * 已经读/写了的buffer中的字节大小（读/写过的数据将从buffer中remove）
           */
         size_t bytes = 0;
 
@@ -118,10 +123,11 @@ namespace DB {
          * 那么working_buffer(工作缓冲区)的大小将是10个字节
          * 注意: working_buffer.end()指针指向的是可读取的10个字节之后的位置
          */
-        Buffer working_buffer;
+        Buffer working_buffer;  //工作缓冲区(是内部缓冲区的一部分/一个子集)
 
         /// A reference to a piece of memory for the buffer.
-        Buffer internal_buffer;
+        ///这个是内部buffer，以读/写磁盘文件为例，其指向默认大小1 MB 的一块内存
+        Buffer internal_buffer;  //内部缓冲区
 
         /// Indicator of 15 bytes pad_right
         bool padded{false};

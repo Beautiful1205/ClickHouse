@@ -8,6 +8,7 @@ namespace DB
 {
 
 /** Converts columns-constants to full columns ("materializes" them).
+  * 将列常量转换为完整列（materializes） //类比使用MySQL SQL: show full columns from table 显示table的详细信息？？？
   */
 class MaterializingBlockOutputStream : public IBlockOutputStream
 {

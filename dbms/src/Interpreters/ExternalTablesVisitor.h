@@ -38,6 +38,7 @@ private:
 };
 
 /// Finds in the query the usage of external tables. Fills in external_tables.
+// 找到query中的外部表. 将全局子查询结果数据写到外部表中
 using ExternalTablesVisitor = InDepthNodeVisitor<ExternalTablesMatcher, false>;
 
 }

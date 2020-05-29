@@ -27,7 +27,7 @@ namespace DB {
 
     size_t MergeTreeRangeReader::DelayedStream::readRows(Block &block, size_t num_rows) {
         if (num_rows) {
-            ///readRows()方法
+            // readRows()方法
             size_t rows_read = merge_tree_reader->readRows(current_mark, continue_reading, num_rows, block);
             continue_reading = true;
 
@@ -54,7 +54,7 @@ namespace DB {
             num_delayed_rows += num_rows;
             return 0;
         } else {
-            ///finalize(block)方法
+            // finalize(block)方法
             size_t read_rows = finalize(block);
 
             continue_reading = false;
@@ -92,7 +92,7 @@ namespace DB {
         current_offset += num_delayed_rows;
         num_delayed_rows = 0;
 
-        ///readRows()方法
+        //readRows()方法
         return readRows(block, rows_to_read);
     }
 
@@ -158,7 +158,7 @@ namespace DB {
         if (num_rows) {
             checkNotFinished();
 
-            /// readRows()方法
+            // readRows()方法
             size_t read_rows = readRows(block, num_rows);
 
             offset_after_current_mark += num_rows;
@@ -200,7 +200,7 @@ namespace DB {
         if (stream.isFinished())
             finish();
 
-        return read_rows;
+        return read_rows;//返回的是读取的行数
     }
 
 
@@ -476,7 +476,7 @@ namespace DB {
                     merge_tree_reader->evaluateMissingDefaults(read_result.block);
             }
         } else {
-            /// startReadingChain()方法, 重点
+            // startReadingChain()方法, 重点
             read_result = startReadingChain(max_rows, ranges);
             if (read_result.block) {
                 bool should_evaluate_missing_defaults;
@@ -532,7 +532,7 @@ namespace DB {
             size_t space_left = max_rows;
             while (space_left && (!stream.isFinished() || !ranges.empty())) {
                 if (stream.isFinished()) {//stream.isFinished() = true, 表示读取完了一个mark范围
-                    result.addRows(stream.finalize(result.block));
+                    result.addRows(stream.finalize(result.block));//stream.finalize() 这个方法也是个重点
                     stream = Stream(ranges.back().begin, ranges.back().end, merge_tree_reader);
                     result.addRange(ranges.back());
                     ranges.pop_back();
@@ -543,7 +543,7 @@ namespace DB {
                 //是否读到当前granule的最后了？
                 bool last = rows_to_read == space_left;
 
-                /// stream.read()方法是在具体的读取数据, 读到的数据保存在result.block中
+                // (重点)stream.read()方法是在具体的读取数据, 读到的数据保存在result.block中
                 result.addRows(stream.read(result.block, rows_to_read, !last));
 
                 result.addGranule(rows_to_read);

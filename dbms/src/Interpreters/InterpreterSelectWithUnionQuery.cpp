@@ -13,9 +13,11 @@
 #include <Parsers/ASTExpressionList.h>
 
 
-namespace DB {
+namespace DB
+{
 
-    namespace ErrorCodes {
+    namespace ErrorCodes
+    {
         extern const int LOGICAL_ERROR;
         extern const int UNION_ALL_RESULT_STRUCTURES_MISMATCH;
     }
@@ -28,7 +30,8 @@ namespace DB {
             const Names &required_result_column_names)
             : options(options_),
               query_ptr(query_ptr_),
-              context(context_) {
+              context(context_)
+    {
         const auto &ast = query_ptr->as<ASTSelectWithUnionQuery &>();
 
         //用UNION连接起来的SELECT语句的个数
@@ -37,17 +40,21 @@ namespace DB {
         if (!num_selects)
             throw Exception("Logical error: no children in ASTSelectWithUnionQuery", ErrorCodes::LOGICAL_ERROR);
 
-        /// Initialize interpreters for each SELECT query.
+        /// Initialize interpreters for each SELECT query. 为每个SELECT查询初始化执行器
         /// Note that we pass 'required_result_column_names' to first SELECT.
         /// And for the rest, we pass names at the corresponding positions of 'required_result_column_names' in the result of first SELECT,
         ///  because names could be different.
+        /// 将 返回结果的列名 required_result_column_names 传递给第一个SELECT查询,
+        /// 将第一个SELECT查询的结果的各个列的名称传递给其余的SELECT查询.
 
         nested_interpreters.reserve(num_selects);
 
-        std::vector<Names> required_result_column_names_for_other_selects(num_selects);//从第二个开始, 每个SELECT语句中投影的字段的名称(就是每个查询需要select出来的字段名)
+        std::vector<Names> required_result_column_names_for_other_selects(
+                num_selects);//从第二个开始, 每个SELECT语句中投影的字段的名称(就是每个查询需要select出来的字段名)
 
         //注意代码里默认required_result_column_names={}, 恒为empty(), 所以应该不会走这块儿的逻辑
-        if (!required_result_column_names.empty() && num_selects > 1) {
+        if (!required_result_column_names.empty() && num_selects > 1)
+        {
             /// Result header if there are no filtering by 'required_result_column_names'.
             /// We use it to determine positions of 'required_result_column_names' in SELECT clause.
 
@@ -60,7 +67,8 @@ namespace DB {
                 positions_of_required_result_columns[required_result_num] = full_result_header.getPositionByName(
                         required_result_column_names[required_result_num]);
 
-            for (size_t query_num = 1; query_num < num_selects; ++query_num) {
+            for (size_t query_num = 1; query_num < num_selects; ++query_num)
+            {
                 Block full_result_header_for_current_select = InterpreterSelectQuery(
                         ast.list_of_selects->children.at(query_num), context,
                         options.copy().analyze().noModify()).getSampleBlock();
@@ -79,11 +87,13 @@ namespace DB {
             }
         }
 
-        for (size_t query_num = 0; query_num < num_selects; ++query_num) {
+        for (size_t query_num = 0; query_num < num_selects; ++query_num)
+        {
             const Names &current_required_result_column_names
                     = query_num == 0 ? required_result_column_names
                                      : required_result_column_names_for_other_selects[query_num];
 
+            //这里算是一个重点
             nested_interpreters.emplace_back(std::make_unique<InterpreterSelectQuery>(
                     ast.list_of_selects->children.at(query_num),
                     context,
@@ -91,10 +101,13 @@ namespace DB {
                     current_required_result_column_names));
         }
 
-        /// Determine structure of the result.  确定结果数据的结构(表头)
-        if (num_selects == 1) {
+        /// Determine structure of the result.
+        /// 确保进行UNION的SELECT结果的数据的结构(表头)是一致的
+        if (num_selects == 1)
+        {
             result_header = nested_interpreters.front()->getSampleBlock();
-        } else {
+        } else
+        {
             Blocks headers(num_selects);
             for (size_t query_num = 0; query_num < num_selects; ++query_num)
                 headers[query_num] = nested_interpreters[query_num]->getSampleBlock();
@@ -110,7 +123,8 @@ namespace DB {
                                     + headers[query_num].dumpNames() + "\n",
                                     ErrorCodes::UNION_ALL_RESULT_STRUCTURES_MISMATCH);
 
-            for (size_t column_num = 0; column_num < num_columns; ++column_num) {
+            for (size_t column_num = 0; column_num < num_columns; ++column_num)
+            {
                 std::vector<const ColumnWithTypeAndName *> columns;
                 columns.reserve(num_selects);
                 for (size_t i = 0; i < num_selects; ++i)
@@ -126,17 +140,20 @@ namespace DB {
     InterpreterSelectWithUnionQuery::~InterpreterSelectWithUnionQuery() = default;
 
 
-    Block InterpreterSelectWithUnionQuery::getSampleBlock() {
+    Block InterpreterSelectWithUnionQuery::getSampleBlock()
+    {
         return result_header;
     }
 
     Block InterpreterSelectWithUnionQuery::getSampleBlock(
             const ASTPtr &query_ptr,
-            const Context &context) {
+            const Context &context)
+    {
         auto &cache = context.getSampleBlockCache();
         /// Using query string because query_ptr changes for every internal SELECT
         auto key = queryToString(query_ptr);
-        if (cache.find(key) != cache.end()) {
+        if (cache.find(key) != cache.end())
+        {
             return cache[key];
         }
 
@@ -145,10 +162,12 @@ namespace DB {
     }
 
 
-    BlockInputStreams InterpreterSelectWithUnionQuery::executeWithMultipleStreams() {
+    BlockInputStreams InterpreterSelectWithUnionQuery::executeWithMultipleStreams()
+    {
         BlockInputStreams nested_streams;
 
-        for (auto &interpreter : nested_interpreters) {
+        for (auto &interpreter : nested_interpreters)
+        {
             BlockInputStreams streams = interpreter->executeWithMultipleStreams();
             nested_streams.insert(nested_streams.end(), streams.begin(), streams.end());
         }
@@ -164,18 +183,22 @@ namespace DB {
     }
 
 
-    BlockIO InterpreterSelectWithUnionQuery::execute() {
+    BlockIO InterpreterSelectWithUnionQuery::execute()
+    {
         const Settings &settings = context.getSettingsRef();
 
         BlockInputStreams nested_streams = executeWithMultipleStreams();
         BlockInputStreamPtr result_stream;
 
-        if (nested_streams.empty()) {
+        if (nested_streams.empty())
+        {
             result_stream = std::make_shared<NullBlockInputStream>(getSampleBlock());
-        } else if (nested_streams.size() == 1) {
+        } else if (nested_streams.size() == 1)
+        {
             result_stream = nested_streams.front();
             nested_streams.clear();
-        } else {
+        } else
+        {
             result_stream = std::make_shared<UnionBlockInputStream>(nested_streams, nullptr, settings.max_threads);
             nested_streams.clear();
         }
@@ -186,7 +209,8 @@ namespace DB {
     }
 
 
-    void InterpreterSelectWithUnionQuery::ignoreWithTotals() {
+    void InterpreterSelectWithUnionQuery::ignoreWithTotals()
+    {
         for (auto &interpreter : nested_interpreters)
             interpreter->ignoreWithTotals();
     }

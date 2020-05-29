@@ -56,13 +56,14 @@ namespace DB {
 
             if (!aggregator.hasTemporaryFiles()) {
                 /** If all partially-aggregated data is in RAM, then merge them in parallel, also in RAM.
-                    */
+                  * 如果所有的中间聚合结果数据都在RAM中, 那么并行地将它们合并, 也是在RAM中进行的
+                  */
                 impl = aggregator.mergeAndConvertToBlocks(many_data, final, max_threads);
             } else {
                 /** If there are temporary files with partially-aggregated data on the disk,
-                    *  then read and merge them, spending the minimum amount of memory.
-                    */
-
+                  * then read and merge them, spending the minimum amount of memory.
+                  * 如果磁盘上有中间聚合结果数据的临时文件, 需要先读取并合并它们, 占用最少的内存
+                  */
                 ProfileEvents::increment(ProfileEvents::ExternalAggregationMerge);
 
                 const auto &files = aggregator.getTemporaryFiles();

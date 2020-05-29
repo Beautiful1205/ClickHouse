@@ -61,7 +61,9 @@ namespace DB {
         socket().setSendTimeout(global_settings.send_timeout);
         socket().setNoDelay(true);
 
+        //从客户端读取的数据
         in = std::make_shared<ReadBufferFromPocoSocket>(socket());
+        //要写到客户端的数据
         out = std::make_shared<WriteBufferFromPocoSocket>(socket());
 
         if (in->eof()) {
@@ -94,6 +96,7 @@ namespace DB {
         }
 
         /// When connecting, the default database can be specified.
+        // 设置默认的数据库
         if (!default_database.empty()) {
             if (!connection_context.isDatabaseExist(default_database)) {
                 Exception e("Database " + default_database + " doesn't exist", ErrorCodes::UNKNOWN_DATABASE);
@@ -118,8 +121,7 @@ namespace DB {
             //while(true)的情况下, 进入while循环, 代码不会向下执行;
             //while(false)的情况下, 不进入while循环, 向下执行;
             /// We are waiting for a packet from the client. Thus, every `POLL_INTERVAL` seconds check whether we need to shut down.
-            while (!static_cast<ReadBufferFromPocoSocket &>(*in).poll(global_settings.poll_interval * 1000000) &&
-                   !server.isCancelled());
+            while (!static_cast<ReadBufferFromPocoSocket &>(*in).poll(global_settings.poll_interval * 1000000) && !server.isCancelled());
 
             /// If we need to shut down, or client disconnects.
             if (server.isCancelled() || in->eof())
@@ -167,6 +169,8 @@ namespace DB {
                     CurrentThread::attachInternalTextLogsQueue(state.logs_queue);
                 }
 
+                /// We have to copy external tables inside executeQuery() to track limits. Therefore, set callback for it. Must set once.
+                //在执行executeQuery()方法的时候, 如果使用的是外部表, 则需要执行该回调函数. 涉及到从外部表读取数据
                 query_context->setExternalTablesInitializer([&global_settings, this](Context &context) {
                     if (&context != &*query_context)
                         throw Exception("Unexpected context in external tables initializer", ErrorCodes::LOGICAL_ERROR);
@@ -307,8 +311,9 @@ namespace DB {
             Stopwatch watch(CLOCK_MONOTONIC_COARSE);
 
             /// We are waiting for a packet from the client. Thus, every `POLL_INTERVAL` seconds check whether we need to shut down.
+            /// 等待接收client的数据包. 每隔POLL_INTERVAL秒检查是否需要关闭
             while (true) {
-                if (static_cast<ReadBufferFromPocoSocket &>(*in).poll(poll_interval))
+                if (static_cast<ReadBufferFromPocoSocket &>(*in).poll(poll_interval)) //结果为true, 跳出当前循环, 调用receivePacket()方法
                     break;
 
                 /// Do we need to shut down?
@@ -346,18 +351,19 @@ namespace DB {
     void TCPHandler::processInsertQuery(const Settings &global_settings) {
         /** Made above the rest of the lines, so that in case of `writePrefix` function throws an exception,
           *  client receive exception before sending data.
+          *  最先执行writePrefix()函数, 如果其抛出异常, 客户端就能在发送数据之前接收该异常
           */
         state.io.out->writePrefix();
 
-        /// Send ColumnsDescription for insertion table
+        /// Send ColumnsDescription for insertion table   发送插入数据目标表的ColumnsDescription
         if (client_revision >= DBMS_MIN_REVISION_WITH_COLUMN_DEFAULTS_METADATA) {
             const auto &db_and_table = query_context->getInsertionTable();
             if (query_context->getSettingsRef().input_format_defaults_for_omitted_fields)
                 sendTableColumns(query_context->getTable(db_and_table.first, db_and_table.second)->getColumns());
         }
 
-        /// Send block to the client - table structure.
-        sendData(state.io.out->getHeader());
+        /// Send block to the client - table structure. 发送包含表结构的block给client, client将数据按照这个格式发送给server
+        sendData(state.io.out->getHeader());//由 Client.cpp中 processInsertQuery() -> receiveSampleBlock()的方法接收并进行后续格式化数据并发送给server
 
         readData(global_settings);//这个方法是重点, 主要方法调用链readData() -> receivePacket() -> receiveData() -> write()
         state.io.out->writeSuffix();
@@ -377,7 +383,7 @@ namespace DB {
                     sendData(header);//应该是向客户端发送 表头
             }
 
-            AsynchronousBlockInputStream async_in(state.io.in);
+            AsynchronousBlockInputStream async_in(state.io.in);//异步的BlockInputStream.
             //参考向量化执行引擎---Vectored iterator model(火山模型的进阶版本)
             //在此之前的过程是在构建stream (生成执行计划)
             //从readPrefix()方法开始就已经真正的从数据库中读取数据了
@@ -400,7 +406,8 @@ namespace DB {
 
                         sendLogs();//向客户端发送日志
 
-                        if (async_in.poll(query_context->getSettingsRef().interactive_delay / 1000)) {//是否超时
+                        //poll()方法读取数据, 根据poll()方法的返回值确定数据是否准备好了 (重点看下)
+                        if (async_in.poll(query_context->getSettingsRef().interactive_delay / 1000)) {//每0.1秒检查一次是否超时/SQL执行是否被取消, 同时发送SQL执行进度
                             /// There is the following result block.
                             block = async_in.read();//从in缓冲区中读出数据, 后面发送回客户端
                             break;//读取一个Block后, 跳出当前循环, 将数据发送到客户端后, 读取下一个Block, 再发送, 如此往复...
@@ -580,7 +587,7 @@ namespace DB {
                 if (state.empty())
                     throw NetException("Unexpected packet Data received from client",
                                        ErrorCodes::UNEXPECTED_PACKET_FROM_CLIENT);
-                return receiveData();//读取insert数据, 并调用write()方法写到Block中
+                return receiveData();//读取数据
 
             case Protocol::Client::Ping:
                 writeVarUInt(Protocol::Server::Pong, *out);
@@ -659,10 +666,10 @@ namespace DB {
                                                                settings.send_timeout);
 
         readVarUInt(stage, *in);
-        state.stage = QueryProcessingStage::Enum(stage);
+        state.stage = QueryProcessingStage::Enum(stage);//默认是complete, 在这一步重新设置
 
         readVarUInt(compression, *in);
-        state.compression = static_cast<Protocol::Compression>(compression);
+        state.compression = static_cast<Protocol::Compression>(compression);//默认是不使用压缩, 在这一步重新设置
 
         readStringBinary(state.query, *in);//将SQL从in中读出, 存在state.query中
     }
@@ -675,12 +682,14 @@ namespace DB {
         String external_table_name;
         readStringBinary(external_table_name, *in);
 
-        /// Read one block from the network and write it down
+        /// Read one block from the network and write it down 从网络中读取一个block, 并写到下层流/文件
         Block block = state.block_in->read();
 
         if (block) {
             /// If there is an insert request, then the data should be written directly to `state.io.out`.
             /// Otherwise, we write the blocks in the temporary `external_table_name` table.
+            // 如果是INSERT语句, need_receive_data_for_insert = true, 则直接写到state.io.out
+            // 如果是INSERT SELECT语句, need_receive_data_for_insert = false, 先写到临时的external_table_name表中
             if (!state.need_receive_data_for_insert) {
                 StoragePtr storage;
                 /// If such a table does not exist, create it.
@@ -690,11 +699,11 @@ namespace DB {
                     storage->startup();
                     query_context->addExternalTable(external_table_name, storage);
                 }
-                /// The data will be written directly to the table.
+                /// The data will be written directly to the table.   data会直接被写到table中
                 state.io.out = storage->write(ASTPtr(), *query_context);
             }
             if (block)
-                state.io.out->write(block);
+                state.io.out->write(block);//data会直接被写到table中
             return true;
         } else
             return false;

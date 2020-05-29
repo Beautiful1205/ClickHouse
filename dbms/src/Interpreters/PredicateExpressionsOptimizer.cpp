@@ -65,6 +65,7 @@ bool PredicateExpressionsOptimizer::optimize()
     if (ast_select->array_join_expression_list())
         return false;
 
+    //获取到subquery中所有需要project的列
     SubqueriesProjectionColumns all_subquery_projection_columns = getAllSubqueryProjectionColumns();
 
     bool is_rewrite_subqueries = false;
@@ -97,6 +98,7 @@ bool PredicateExpressionsOptimizer::optimizeImpl(
         for (const auto & [subquery, projection_columns] : subqueries_projection_columns)
         {
             OptimizeKind optimize_kind = OptimizeKind::NONE;
+            //先判断是否允许进行下推优化
             if (allowPushDown(subquery, outer_predicate, projection_columns, outer_predicate_dependencies, optimize_kind))
             {
                 if (optimize_kind == OptimizeKind::NONE)
@@ -180,6 +182,7 @@ bool PredicateExpressionsOptimizer::allowPushDown(
                                 ->children[0]->as<ASTSelectWithUnionQuery>()
                                 ->list_of_selects->children[0]->as<ASTSelectQuery>();
 
+        //谓词下推是有局限性的. 在包含JOIN的情况下禁用部分谓词下推的优化
         /// NOTE: the syntactic way of pushdown has limitations and should be partially disabled in case of JOINs.
         ///       Let's take a look at the query:
         ///

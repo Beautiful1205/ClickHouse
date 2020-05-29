@@ -25,6 +25,10 @@ namespace DB {
           * Header block contains column names, data types, columns of size 0. Constant columns must have corresponding values.
           * You must pass blocks of exactly this structure to the 'write' method.
           */
+        /** 流的数据结构保存在header block中(或者sample block).
+          * header block包含列名、数据类型、大小为0的列(空列, 不包含具体的数据). 常量列必须具有相应的值
+          * 必须将和这个结构完全相同的block中传递给write()方法。
+          */
         virtual Block getHeader() const = 0;
 
         /** Write block.

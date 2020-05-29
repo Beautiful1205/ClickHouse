@@ -53,7 +53,7 @@ BlockInputStreamPtr FormatFactory::getInput(const String & name, ReadBuffer & bu
 
 BlockOutputStreamPtr FormatFactory::getOutput(const String & name, WriteBuffer & buf, const Block & sample, const Context & context) const
 {
-    const auto & output_getter = getCreators(name).second;
+    const auto & output_getter = getCreators(name).second;//输出格式
     if (!output_getter)
         throw Exception("Format " + name + " is not suitable for output", ErrorCodes::FORMAT_IS_NOT_SUITABLE_FOR_OUTPUT);
 

@@ -11,8 +11,7 @@ namespace DB
   * Unlike UnionBlockInputStream, it does this sequentially.
   * Blocks of different sources are not interleaved with each other.
   */
-/**将多个源合并为一个. 与UnionBlockInputStream不同, 它是按顺序执行的.
- * 不同源的块不会相互交错.
+/**将多个源合并为一个. 与UnionBlockInputStream不同, 它是按顺序执行的. 不同源的块不会相互交错.
  */
 class ConcatBlockInputStream : public IBlockInputStream
 {

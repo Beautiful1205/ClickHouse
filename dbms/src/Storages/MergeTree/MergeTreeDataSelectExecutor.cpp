@@ -136,8 +136,8 @@ namespace DB {
             const unsigned num_streams,
             const PartitionIdToMaxBlock *max_block_numbers_to_read) const {
         return readFromParts(
-                //data.getDataPartsVector()这个方法返回目前所有Committed状态的part
-                data.getDataPartsVector(), column_names_to_return, query_info, context,
+                data.getDataPartsVector(), //data.getDataPartsVector()这个方法返回目前所有Committed状态的part
+                column_names_to_return, query_info, context,
                 max_block_size, num_streams, max_block_numbers_to_read);
     }
 
@@ -146,8 +146,8 @@ namespace DB {
             const Names &column_names_to_return,
             const SelectQueryInfo &query_info,
             const Context &context,
-            const UInt64 max_block_size,
-            const unsigned num_streams,
+            const UInt64 max_block_size,//max_block_size = 65536 行
+            const unsigned num_streams, //max_streams = 1
             const PartitionIdToMaxBlock *max_block_numbers_to_read) const {
         size_t part_index = 0;//记录这是第几个part
 
@@ -197,6 +197,7 @@ namespace DB {
         const Settings &settings = context.getSettingsRef();
         Names primary_key_columns = data.primary_key_columns;
 
+        //构造KeyCondition对象(保存着主键索引)
         KeyCondition key_condition(query_info, context, primary_key_columns, data.primary_key_expr);
 
         if (settings.force_primary_key && key_condition.alwaysUnknownOrTrue()) {//settings中规定必须使用主键索引但SQL没有主键索引的情况下抛出异常
@@ -209,7 +210,9 @@ namespace DB {
             throw Exception(exception_message.str(), ErrorCodes::INDEX_NOT_USED);
         }
 
-        std::optional<KeyCondition> minmax_idx_condition; //minmax_idx_condition应该对应这part中的minmax_dt.idx索引文件, 保存着part中dt的范围
+        //构造minmax_idx_condition对象, 保存这minmax索引
+        //minmax_idx_condition应该对应这part中的minmax_dt.idx索引文件, 保存着part中dt的范围
+        std::optional<KeyCondition> minmax_idx_condition;
         if (data.minmax_idx_expr) {
             minmax_idx_condition.emplace(query_info, context, data.minmax_idx_columns, data.minmax_idx_expr);
 
@@ -564,12 +567,12 @@ namespace DB {
                     virt_column_names,
                     settings);
         } else {
-            //根据parts_with_ranges构建stream, 将Mark范围扩展到所有流中
+            // 根据parts_with_ranges构建stream, 将Mark范围扩展到所有流中
             res = spreadMarkRangesAmongStreams(
                     std::move(parts_with_ranges),
                     num_streams,//num_streams=1
                     column_names_to_read,
-                    max_block_size,//max_block_size = 65536 B = 64 KB
+                    max_block_size,//max_block_size = 65536 行
                     settings.use_uncompressed_cache,
                     query_info.prewhere_info,
                     virt_column_names,
@@ -589,8 +592,7 @@ namespace DB {
 
         if (query_info.prewhere_info && query_info.prewhere_info->remove_columns_actions)
             for (auto &stream : res)
-                stream = std::make_shared<ExpressionBlockInputStream>(stream,
-                                                                      query_info.prewhere_info->remove_columns_actions);
+                stream = std::make_shared<ExpressionBlockInputStream>(stream, query_info.prewhere_info->remove_columns_actions);
 
         return res;
     }
@@ -634,12 +636,13 @@ namespace DB {
 
         /// Count marks for each part.
         std::vector<size_t> sum_marks_in_parts(parts.size());
-        size_t sum_marks = 0;//mark文件的数量
+        size_t sum_marks = 0;//所有的part中mark的数量总和
         size_t total_rows = 0;
         //遍历每个part
         for (size_t i = 0; i < parts.size(); ++i) {
             total_rows += parts[i].getRowsCount();
             /// Let the ranges be listed from right to left so that the leftmost range can be dropped using `pop_back()`.
+            ///从右到左列出范围, 以便可以使用“pop_back()”删除最左边的范围. 这个操作是把parts[i].ranges中的元素进行了首尾翻转
             std::reverse(parts[i].ranges.begin(), parts[i].ranges.end());
 
             for (const auto &range : parts[i].ranges)
@@ -654,8 +657,10 @@ namespace DB {
 
         BlockInputStreams res;
 
-        //如果sum_marks <= 0, 则直接返回res;
-        //如果sum_marks > 0, 且设置merge_tree_uniform_read_distribution=true(默认设置为true, 表示将从MergeTree读取的数据均匀分布在线程上, 确保每个线程在一次读取操作中的平均执行时间稳定)
+        // 如果sum_marks <= 0, 则直接返回res;
+        // 如果sum_marks > 0, 且设置merge_tree_uniform_read_distribution=true
+        // (默认设置为true, 表示将从MergeTree读取的数据均匀分布在线程上, 确保每个线程在一次读取操作中的平均执行时间稳定)(Distribute read from MergeTree over threads evenly, ensuring stable average execution time of each thread within one read operation.)
+        /// 在这里num_streams的值可能会发生变化
         if (sum_marks > 0 && settings.merge_tree_uniform_read_distribution == 1) {
             /// Reduce the number of num_streams if the data is small.
             if (sum_marks < num_streams * min_marks_for_concurrent_read && parts.size() < num_streams)
@@ -688,8 +693,7 @@ namespace DB {
                 size_t need_marks = min_marks_per_stream;
 
                 /// Loop over parts.
-                /// We will iteratively take part or some subrange of a part from the back
-                ///  and assign a stream to read from it.
+                /// We will iteratively take part or some subrange of a part from the back and assign a stream to read from it.
                 while (need_marks > 0 && !parts.empty()) {
                     RangesInDataPart part = parts.back();
                     parts.pop_back();

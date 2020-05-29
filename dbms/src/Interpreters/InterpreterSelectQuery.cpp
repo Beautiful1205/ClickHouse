@@ -130,6 +130,7 @@ namespace DB {
             const Context &context_,
             const SelectQueryOptions &options,
             const Names &required_result_column_names)
+            //调用这个这个方法
             : InterpreterSelectQuery(query_ptr_, context_, nullptr, nullptr, options, required_result_column_names) {
     }
 
@@ -172,7 +173,7 @@ namespace DB {
             const SelectQueryOptions &options_,
             const Names &required_result_column_names)
             : options(options_)
-            /// NOTE: the query almost always should be cloned because it will be modified during analysis.
+            /// NOTE: the query almost always should be cloned because it will be modified during analysis.   modify_inplace=false, 所以一般都会clone一份query_ptr
             , query_ptr(options.modify_inplace ? query_ptr_ : query_ptr_->clone()), context(context_),
               storage(storage_), input(input_), log(&Logger::get("InterpreterSelectQuery")) {
         initSettings();
@@ -182,20 +183,23 @@ namespace DB {
             throw Exception("Too deep subqueries. Maximum: " + settings.max_subquery_depth.toString(),
                             ErrorCodes::TOO_DEEP_SUBQUERIES);
 
+        // if true, Convert CROSS JOIN to INNER JOIN if possible
+        // 通过构建*Visitor并调用visit()方法, 修改语法树, 将 cross join 改写成 inner join
         if (settings.allow_experimental_cross_to_join_conversion) {
             CrossToInnerJoinVisitor::Data cross_to_inner;
             CrossToInnerJoinVisitor(cross_to_inner).visit(query_ptr);
         }
 
+        //if true, Emulate multiple joins using subselects          //用 子查询 代替 多个join
         if (settings.allow_experimental_multiple_joins_emulation) {
             JoinToSubqueryTransformVisitor::Data join_to_subs_data{context};
             JoinToSubqueryTransformVisitor(join_to_subs_data).visit(query_ptr);
         }
 
-        max_streams = settings.max_threads;
+        max_streams = settings.max_threads; //The maximum number of threads to execute the request. By default, it is determined automatically.
         auto &query = getSelectQuery();
 
-        //提取 表 表达式
+        //提取 表 表达式(库名.表名 或 表函数, 还会区分是否是子查询)
         ASTPtr table_expression = extractTableExpression(query, 0);
 
         bool is_table_func = false;
@@ -229,18 +233,14 @@ namespace DB {
             }
         }
 
-        if (storage)
+        if (storage) //对于从底层存储引擎中读取数据的query, 对当前表结构加锁(共享锁)(ReadLock)
             table_lock = storage->lockStructureForShare(false, context.getCurrentQueryId());
 
-        //AST语法分析结果
-        syntax_analyzer_result = SyntaxAnalyzer(context, options).analyze(
-                query_ptr, source_header.getNamesAndTypesList(), required_result_column_names, storage);
+        //AST语法分析结果, 先构建SyntaxAnalyzer, 再调用其analyze()方法. 进行一些列的优化
+        syntax_analyzer_result = SyntaxAnalyzer(context, options).analyze(query_ptr, source_header.getNamesAndTypesList(), required_result_column_names, storage);
 
         //将语法树的一个表达式转换为执行的一系列操作
-        query_analyzer = std::make_unique<ExpressionAnalyzer>(
-                query_ptr, syntax_analyzer_result, context, NamesAndTypesList(),
-                NameSet(required_result_column_names.begin(), required_result_column_names.end()),
-                options.subquery_depth, !options.only_analyze);
+        query_analyzer = std::make_unique<ExpressionAnalyzer>(query_ptr, syntax_analyzer_result, context, NamesAndTypesList(), NameSet(required_result_column_names.begin(), required_result_column_names.end()), options.subquery_depth, !options.only_analyze);
 
         if (!options.only_analyze) {
             if (query.sample_size() && (input || !storage || !storage->supportsSampling()))
@@ -255,6 +255,7 @@ namespace DB {
                                                     : "Illegal PREWHERE", ErrorCodes::ILLEGAL_PREWHERE);
 
             /// Save the new temporary tables in the query context
+            // 将产生的临时表加到query上下文中
             for (const auto &it : query_analyzer->getExternalTables())
                 if (!context.tryGetExternalTable(it.first))
                     context.addExternalTable(it.first, it.second);
@@ -263,6 +264,7 @@ namespace DB {
         if (!options.only_analyze || options.modify_inplace) {
             if (query_analyzer->isRewriteSubqueriesPredicate()) {
                 /// remake interpreter_subquery when PredicateOptimizer rewrites subqueries and main table is subquery
+                // 当PredicateOptimizer重写子查询且主表为子查询时, 重新生成interpreter_subquery
                 if (is_subquery)
                     interpreter_subquery = std::make_unique<InterpreterSelectWithUnionQuery>(
                             table_expression,
@@ -274,6 +276,7 @@ namespace DB {
 
         if (interpreter_subquery) {
             /// If there is an aggregation in the outer query, WITH TOTALS is ignored in the subquery.
+            /// 如果外层查询中存在聚合, 则子查询中将忽略WITH TOTALS这个关键字
             if (query_analyzer->hasAggregation())
                 interpreter_subquery->ignoreWithTotals();
         }
@@ -286,6 +289,7 @@ namespace DB {
         /// Calculate structure of the result.
         {
             Pipeline pipeline;
+            // 这里的这个executeImpl()方法使用来确定结果数据的结构(表头)的, 此时dry_run = true. 注意: execute()方法中还有一个executeImpl()方法的调用, 此时dry_run = false
             executeImpl(pipeline, nullptr, true);
             result_header = pipeline.firstStream()->getHeader();
         }
@@ -313,7 +317,8 @@ namespace DB {
     }
 
 
-    BlockIO InterpreterSelectQuery::execute() {
+    BlockIO InterpreterSelectQuery::execute()
+    {
         Pipeline pipeline;
         executeImpl(pipeline, input, options.only_analyze);//SELECT语句的具体的执行实现
         executeUnion(pipeline);//执行UNION操作
@@ -323,37 +328,40 @@ namespace DB {
         return res;
     }
 
-    BlockInputStreams InterpreterSelectQuery::executeWithMultipleStreams() {
+    BlockInputStreams InterpreterSelectQuery::executeWithMultipleStreams()
+    {
         Pipeline pipeline;
         executeImpl(pipeline, input, options.only_analyze);
         return pipeline.streams;
     }
 
     InterpreterSelectQuery::AnalysisResult
-    InterpreterSelectQuery::analyzeExpressions(QueryProcessingStage::Enum from_stage, bool dry_run,
-                                               const FilterInfoPtr &filter_info) {
+    InterpreterSelectQuery::analyzeExpressions(QueryProcessingStage::Enum from_stage, bool dry_run, const FilterInfoPtr &filter_info)
+    {
         AnalysisResult res;
 
+        //用于确定当前server上的阶段处于执行计划的哪个阶段
         /// Do I need to perform the first part of the pipeline - running on remote servers during distributed processing.
-        // 是否需要运行执行计划的第一阶段
+        // 是执行计划的第一阶段吗？ first_stage:分布式查询期间在remote servers上运行  (from_stage = FetchColumns && to_stage >= WithMergeableState)
         res.first_stage = from_stage < QueryProcessingStage::WithMergeableState
                           && options.to_stage >= QueryProcessingStage::WithMergeableState;
         /// Do I need to execute the second part of the pipeline - running on the initiating server during distributed processing.
-        // 是否需要运行执行计划的第二阶段
+        // 是执行计划的第二阶段吗？ second_stage:分布式查询期间在initiating server上运行  (from_stage <= WithMergeableState && to_stage = Complete)
         res.second_stage = from_stage <= QueryProcessingStage::WithMergeableState
                            && options.to_stage > QueryProcessingStage::WithMergeableState;
 
         /** First we compose a chain of actions and remember the necessary steps from it.
-            *  Regardless of from_stage and to_stage, we will compose a complete sequence of actions to perform optimization and
-            *  throw out unnecessary columns based on the entire query. In unnecessary parts of the query, we will not execute subqueries.
-            */
+          *  Regardless of from_stage and to_stage, we will compose a complete sequence of actions to perform optimization and
+          *  throw out unnecessary columns based on the entire query.
+          *  In unnecessary parts of the query, we will not execute subqueries.
+          */
 
         bool has_filter = false;
         bool has_prewhere = false;
         bool has_where = false;
         size_t where_step_num;
 
-        //先定义了finalizeChain()这个方法, 供后面调用
+        //先定义了finalizeChain()这个方法, 供后面调用. 用于将所有的step连贯起来
         auto finalizeChain = [&](ExpressionActionsChain &chain) {
             chain.finalize();
 
@@ -468,7 +476,9 @@ namespace DB {
             }
 
             /// If there is aggregation, we execute expressions in SELECT and ORDER BY on the initiating server, otherwise on the source servers.
+            //重点//如果有聚合操作, 则在启动服务器上对SELECT和ORDER BY执行action expressions, 否则在源服务器上执行
             query_analyzer->appendSelect(chain, dry_run || (res.need_aggregate ? !res.second_stage : !res.first_stage));
+
             res.selected_columns = chain.getLastStep().required_output;
             res.has_order_by = query_analyzer->appendOrderBy(chain, dry_run || (res.need_aggregate ? !res.second_stage
                                                                                                    : !res.first_stage));
@@ -520,14 +530,16 @@ namespace DB {
 
 
     //执行的具体实现(重点)
-    void
-    InterpreterSelectQuery::executeImpl(Pipeline &pipeline, const BlockInputStreamPtr &prepared_input, bool dry_run) {
-        /** Streams of data. When the query is executed in parallel, we have several data streams.
-         *  If there is no GROUP BY, then perform all operations before ORDER BY and LIMIT in parallel, then
-         *  if there is an ORDER BY, then glue the streams using UnionBlockInputStream, and then MergeSortingBlockInputStream,
-         *  if not, then glue it using UnionBlockInputStream,
-         *  then apply LIMIT.
-         *  If there is GROUP BY, then we will perform all operations up to GROUP BY, inclusive, in parallel;
+    void InterpreterSelectQuery::executeImpl(Pipeline &pipeline, const BlockInputStreamPtr &prepared_input, bool dry_run)
+    {
+        /** Streams of data.
+         *  When the query is executed in parallel, we have several data streams.
+         *    If there is no GROUP BY, then perform all operations before ORDER BY and LIMIT in parallel, then
+         *        if there is an ORDER BY, then glue the streams using UnionBlockInputStream, and then MergeSortingBlockInputStream,
+         *        if not, then glue it using UnionBlockInputStream,
+         *        then apply LIMIT.
+         *    If there is GROUP BY, then we will perform all operations up to GROUP BY, inclusive, in parallel;
+         *
          *  a parallel GROUP BY will glue streams into one,
          *  then perform the remaining operations with one resulting stream.
          */
@@ -546,7 +558,7 @@ namespace DB {
 
         /// PREWHERE optimization
 
-        /// Turn off, if the table filter is applied.
+        /// Turn off, if the table filter is applied.  如果使用了table filter, 不走这块逻辑
         // 使用了table filter时, 不进行优化, 即不会将WHERE中的条件移动到PREWHERE中. (table filter是根据user.xml设置的，具体作用不详)
         if (storage && !context.hasUserProperty(storage->getDatabaseName(), storage->getTableName(), "filter")) {
             /// 代码运行到这里表示: 是从表中读取数据 且 没有设置filter属性, 可以将WHERE中的条件移动到PREWHERE中进行优化
@@ -565,8 +577,7 @@ namespace DB {
                 // 允许优化 且 where条件存在 且 prewhere条件不存在 且 query.final()=false 时会进行优化
                 // query.final()=false可能指table_expression为空或modifier=false
                 if (settings.optimize_move_to_prewhere && query.where() && !query.prewhere() && !query.final())
-                    MergeTreeWhereOptimizer{query_info, context, merge_tree, query_analyzer->getRequiredSourceColumns(),
-                                            log};
+                    MergeTreeWhereOptimizer{query_info, context, merge_tree, query_analyzer->getRequiredSourceColumns(), log};
             };
 
             if (const MergeTreeData *merge_tree_data = dynamic_cast<const MergeTreeData *>(storage.get()))
@@ -584,14 +595,17 @@ namespace DB {
             source_header = storage->getSampleBlockForColumns(filter_info->actions->getRequiredColumns());
         }
 
-        //dry_run = true, 表示只是用来分析？？？
+        //dry_run = true, 表示用来获取表头结构; dry_run = false, 表示用来获取数据
         if (dry_run) {
+            //dry_run = true, 表示用来获取表头结构. 不需要实际的数据, 所以在这里构造一个NullBlockInputStream
             pipeline.streams.emplace_back(std::make_shared<NullBlockInputStream>(source_header));
+
+            //分析SQL中的'过滤条件'
             expressions = analyzeExpressions(QueryProcessingStage::FetchColumns, true, filter_info);
 
+            //如果表是按行级安全表达式筛选的，则不支持PREWHERE
             if (storage && expressions.filter_info && expressions.prewhere_info)
-                throw Exception("PREWHERE is not supported if the table is filtered by row-level security expression",
-                                ErrorCodes::ILLEGAL_PREWHERE);
+                throw Exception("PREWHERE is not supported if the table is filtered by row-level security expression", ErrorCodes::ILLEGAL_PREWHERE);
 
             if (expressions.prewhere_info)
                 pipeline.streams.back() = std::make_shared<FilterBlockInputStream>(
@@ -605,26 +619,27 @@ namespace DB {
             //分析SQL中的'过滤条件'
             expressions = analyzeExpressions(from_stage, false, filter_info);
 
-            if (from_stage == QueryProcessingStage::WithMergeableState &&
-                options.to_stage == QueryProcessingStage::WithMergeableState)
+            //不支持分布式表嵌套(from_stage=WithMergeableState && to_stage=WithMergeableState)
+            if (from_stage == QueryProcessingStage::WithMergeableState && options.to_stage == QueryProcessingStage::WithMergeableState)
                 throw Exception("Distributed on Distributed is not supported", ErrorCodes::NOT_IMPLEMENTED);
 
+            //按行级安全性表达式筛选的表不支持PREWHERE子句
             if (storage && expressions.filter_info && expressions.prewhere_info)
-                //按行级安全性表达式筛选的表不支持PREWHERE子句
-                throw Exception("PREWHERE is not supported if the table is filtered by row-level security expression",
-                                ErrorCodes::ILLEGAL_PREWHERE);
+                throw Exception("PREWHERE is not supported if the table is filtered by row-level security expression", ErrorCodes::ILLEGAL_PREWHERE);
 
-            /** Read the data from Storage. from_stage - to what stage the request was completed in Storage. */
-            //重点实现. 从底层存储引擎Storage中读取数据. pipeline保存着具体的执行计划(就是在确定pipeline中的各级stream)
-            executeFetchColumns(from_stage, pipeline, expressions.prewhere_info,
-                                expressions.columns_to_remove_after_prewhere);
+            /** Read the data from Storage.
+              * from_stage - to what stage the request was completed in Storage.
+              */
+            // 重点实现. 构造从底层存储引擎Storage中读取数据的Stream.
+            // pipeline保存着具体的执行计划(就是在确定pipeline中的各级stream)
+            executeFetchColumns(from_stage, pipeline, expressions.prewhere_info, expressions.columns_to_remove_after_prewhere);
 
             LOG_TRACE(log, QueryProcessingStage::toString(from_stage) << " -> " << QueryProcessingStage::toString(
                     options.to_stage));
         }
 
-        //如果需要到达的stage是WithMergeableState或Complete, 需要继续执行下面的操作
-        //如果需要到达的stage是FetchColumns, 则不需要继续执行
+        //如果to_stage是WithMergeableState或Complete, 需要继续执行下面的操作
+        //如果to_stage是FetchColumns, 则不需要继续执行
         if (options.to_stage > QueryProcessingStage::FetchColumns) {
             /// Do I need to aggregate in a separate row rows that have not passed max_rows_to_group_by.
             //如果没有指定max_rows_to_group_by这个参数, 是否需要将多余的行聚合成一行
@@ -639,12 +654,12 @@ namespace DB {
             //聚合后是否需要立即完成聚合函数？即是否需要保留聚合的中间状态？
             bool aggregate_final =
                     expressions.need_aggregate &&
-                    options.to_stage > QueryProcessingStage::WithMergeableState &&
-                    !query.group_by_with_totals && !query.group_by_with_rollup && !query.group_by_with_cube;
+                    options.to_stage > QueryProcessingStage::WithMergeableState &&  //to_stage = Complete
+                    !query.group_by_with_totals && !query.group_by_with_rollup && !query.group_by_with_cube; //是否包含GROUP BY ... WITH CUBE、GROUP BY ... WITH ROLLUP、GROUP BY ... WITH TOTALS
 
             //执行计划的第一阶段(分布式查询期间在远程服务器上运行)
             if (expressions.first_stage) {
-                if (expressions.filter_info) {// 构造FilterBlockInputStream
+                if (expressions.filter_info) {//如果有filter_info, 则需要先构造FilterBlockInputStream
                     pipeline.transform([&](auto &stream) {
                         stream = std::make_shared<FilterBlockInputStream>(
                                 stream,
@@ -657,7 +672,7 @@ namespace DB {
                 //处理Join操作
                 if (expressions.hasJoin()) {
                     const auto &join = query.join()->table_join->as<ASTTableJoin &>();
-                    if (isRightOrFull(join.kind))
+                    if (isRightOrFull(join.kind)) //RIGHT JOIN 或 FULL JOIN.  createStreamWithNonJoinedDataIfFullOrRightJoin() 重点看下
                         pipeline.stream_with_non_joined_data = expressions.before_join->createStreamWithNonJoinedDataIfFullOrRightJoin(
                                 pipeline.firstStream()->getHeader(), settings.max_block_size);
 
@@ -671,8 +686,7 @@ namespace DB {
 
                 //处理聚合操作
                 if (expressions.need_aggregate)
-                    executeAggregation(pipeline, expressions.before_aggregation, aggregate_overflow_row,
-                                       aggregate_final);
+                    executeAggregation(pipeline, expressions.before_aggregation, aggregate_overflow_row, aggregate_final);
                 else {
                     //不包含聚合操作时需要进行的操作
                     //executeExpression是个重点方法, 仔细看一下
@@ -684,7 +698,7 @@ namespace DB {
                 /** For distributed query processing, if no GROUP, HAVING set, but there is an ORDER or LIMIT,
                   *  then we will perform the preliminary sorting and LIMIT on the remote server.
                   */
-                //  对于分布式查询, 如果不包含GROUP和HAVING操作, 但是ORDER或LIMIT操作,
+                //  对于分布式查询, 如果不包含GROUP和HAVING操作, 但是包含ORDER或LIMIT操作,
                 //  那么我们将在远程服务器上执行初步的sorting和limit
                 if (!expressions.second_stage && !expressions.need_aggregate && !expressions.has_having) {
                     if (expressions.has_order_by)
@@ -828,7 +842,7 @@ namespace DB {
             }
         }
 
-        //全局的子查询或子查询集合？？？
+        //包含全局的子查询  且 子查询集合不为空？？？(应该是SQL包含GLOBAL关键字的时候会用到)
         if (query_analyzer->hasGlobalSubqueries() && !expressions.subqueries_for_sets.empty())
             executeSubqueriesInSetsAndJoins(pipeline, expressions.subqueries_for_sets);
     }
@@ -880,7 +894,7 @@ namespace DB {
         auto &query = getSelectQuery();
         const Settings &settings = context.getSettingsRef();
 
-        /// Actions to calculate ALIAS if required.
+        /// Actions to calculate ALIAS if required. 需要时计算别名的操作
         ExpressionActionsPtr alias_actions;
 
         if (storage) {//表示需要从表中读取数据
@@ -897,7 +911,7 @@ namespace DB {
                 }
             }
 
-            /// Detect, if ALIAS columns are required for query execution
+            /// Detect, if ALIAS columns are required for query execution   检测是否需要别名列
             auto alias_columns_required = false;
             const ColumnsDescription &storage_columns = storage->getColumns();
             for (const auto &column_name : required_columns) {
@@ -1063,7 +1077,7 @@ namespace DB {
             max_streams = settings.max_distributed_connections;
         }
 
-        UInt64 max_block_size = settings.max_block_size;//每个block的大小max_block_size = 64KB
+        UInt64 max_block_size = settings.max_block_size;//每个block的大小max_block_size = 65536行. Which blocks by default read the data (by number of rows)
 
         auto[limit_length, limit_offset] = getLimitLengthAndOffset(query, context);
 
@@ -1129,9 +1143,9 @@ namespace DB {
             query_info.sets = query_analyzer->getPreparedSets();
             query_info.prewhere_info = prewhere_info;
 
-            //重点方法, 仔细看下
+            // 重点方法, 仔细看下
             pipeline.streams = storage->read(required_columns, query_info, context, processing_stage, max_block_size,
-                                             max_streams);//max_block_size = 65536 B = 64 KB, max_streams=1
+                                             max_streams);//max_block_size = 65536 行, max_streams=1
 
             if (pipeline.streams.empty()) {
                 //如果streams为空, 则构造NullBlockInputStream并返回(为NULL的流)
@@ -1479,7 +1493,7 @@ namespace DB {
 
     void InterpreterSelectQuery::executeDistinct(Pipeline &pipeline, bool before_order, Names columns) {
         auto &query = getSelectQuery();
-        if (query.distinct) {
+        if (query.distinct) {//如果不包含DISTINCT关键字, 直接返回即可
             const Settings &settings = context.getSettingsRef();
 
             auto[limit_length, limit_offset] = getLimitLengthAndOffset(query, context);
@@ -1612,11 +1626,11 @@ namespace DB {
     }
 
 
-    void InterpreterSelectQuery::executeSubqueriesInSetsAndJoins(Pipeline &pipeline,
-                                                                 SubqueriesForSets &subqueries_for_sets) {
+    void InterpreterSelectQuery::executeSubqueriesInSetsAndJoins(Pipeline &pipeline, SubqueriesForSets &subqueries_for_sets) {
+        //执行UNION, 将多个流UNION成一个流(构造一个上层父类流, 父类流包含了这多个子类流)
         executeUnion(pipeline);
-        pipeline.firstStream() = std::make_shared<CreatingSetsBlockInputStream>(
-                pipeline.firstStream(), subqueries_for_sets, context);
+        //CreatingSetsBlockInputStream这个流会在readPrefix()方法中或在读取第一个块之前, 初始化所有传递的sets
+        pipeline.firstStream() = std::make_shared<CreatingSetsBlockInputStream>(pipeline.firstStream(), subqueries_for_sets, context);
     }
 
     void InterpreterSelectQuery::unifyStreams(Pipeline &pipeline) {

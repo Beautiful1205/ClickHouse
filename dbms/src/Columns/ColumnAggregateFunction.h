@@ -23,15 +23,19 @@ using Arenas = std::vector<ArenaPtr>;
 /** Column of states of aggregate functions.
   * Presented as an array of pointers to the states of aggregate functions (data).
   * The states themselves are stored in one of the pools (arenas).
+  * 聚合函数的状态列.
+  * 表示为指向聚合函数(数据)状态的指针数组. 状态本身存储在一个池(arenas)中
   *
   * It can be in two variants:
   *
+  * 有值, 需要负责销毁这些值
   * 1. Own its values - that is, be responsible for destroying them.
   * The column consists of the values "assigned to it" after the aggregation is performed (see Aggregator, convertToBlocks function),
   *  or from values created by itself (see `insert` method).
   * In this case, `src` will be `nullptr`, and the column itself will be destroyed (call `IAggregateFunction::destroy`)
   *  states of aggregate functions in the destructor.
   *
+  * 无值, 但使用从其他ColumnAggregateFunction列获取的值
   * 2. Do not own its values, but use values taken from another ColumnAggregateFunction column.
   * For example, this is a column obtained by permutation/filtering or other transformations from another column.
   * In this case, `src` will be `shared ptr` to the source column. Destruction of values will be handled by this source column.

@@ -9,6 +9,8 @@ namespace DB
 {
 
 /// Adds defaults to columns using BlockDelayedDefaults bitmask attached to Block by child InputStream.
+// 使用添加child InputStream 的方式, 用 BlockDelayedDefaults 位掩码 给Block添加默认列
+// 比如只insert几个列的数据的时候, 其他没有数据的列用这个默认添加的流
 class AddingDefaultsBlockInputStream : public IBlockInputStream
 {
 public:

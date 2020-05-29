@@ -244,8 +244,8 @@ bool getTables(ASTSelectQuery & select, std::vector<JoinedTable> & joined_tables
     if (!tables)
         return false;
 
-    size_t num_tables = tables->children.size();
-    if (num_tables < 2)
+    size_t num_tables = tables->children.size();//互相join的表的个数
+    if (num_tables < 2) //至少有两个表才能join
         return false;
 
     joined_tables.reserve(num_tables);
@@ -258,30 +258,30 @@ bool getTables(ASTSelectQuery & select, std::vector<JoinedTable> & joined_tables
         JoinedTable & t = joined_tables.back();
         if (t.array_join)
         {
-            ++num_array_join;
+            ++num_array_join;//array_join的个数
             continue;
         }
 
         if (t.has_using)
         {
-            ++num_using;
+            ++num_using;//using的个数
             continue;
         }
 
         if (auto * join = t.join)
             if (join->kind == ASTTableJoin::Kind::Comma)
-                ++num_comma;
+                ++num_comma;//comma的个数
     }
 
-    if (num_using && (num_tables - num_array_join) > 2)
+    if (num_using && (num_tables - num_array_join) > 2)// 多个 CROSS/COMMA JOIN 不支持USING
         throw Exception("Multiple CROSS/COMMA JOIN do not support USING", ErrorCodes::NOT_IMPLEMENTED);
 
-    if (num_comma && (num_comma != (joined_tables.size() - 1)))
+    if (num_comma && (num_comma != (joined_tables.size() - 1)))//不支持COMMA JOIN和other JOINS的混用
         throw Exception("Mix of COMMA and other JOINS is not supported", ErrorCodes::NOT_IMPLEMENTED);
 
-    if (num_array_join || num_using)
+    if (num_array_join || num_using) //如果有 array_join 或者 USING, 则不会进行做将CROSS JOIN 转换成 INNER JOIN
         return false;
-    return true;
+    return true;//只有在包含COMMA JOIN, 且不包含array_join和USING的情况下, 才会尝试将CROSS JOIN 转换成 INNER JOIN
 }
 
 }
@@ -295,12 +295,13 @@ void CrossToInnerJoinMatcher::visit(ASTPtr & ast, Data & data)
 
 void CrossToInnerJoinMatcher::visit(ASTSelectQuery & select, ASTPtr &, Data & data)
 {
-    size_t num_comma = 0;
+    size_t num_comma = 0;//逗号的个数(互相join的表之间可能用逗号相连)
     std::vector<JoinedTable> joined_tables;
+    //只有在包含COMMA JOIN, 且不包含array_join和USING的情况下, 才会尝试将CROSS JOIN 转换成 INNER JOIN
     if (!getTables(select, joined_tables, num_comma))
         return;
 
-    /// COMMA to CROSS
+    /// COMMA to CROSS  把逗号表示的JOIN 转化成 CROSS JOIN
 
     if (num_comma)
     {
@@ -308,9 +309,9 @@ void CrossToInnerJoinMatcher::visit(ASTSelectQuery & select, ASTPtr &, Data & da
             table.rewriteCommaToCross();
     }
 
-    /// CROSS to INNER
+    /// CROSS to INNER   把 where()条件 转化成 INNER JOIN 的 USING 条件/ON 条件, 谓词下推
 
-    if (!select.where())
+    if (!select.where())  //如果没有where()条件, 也就无法转化成USING条件/ON条件, 直接返回
         return;
 
     CheckExpressionVisitor::Data visitor_data{joined_tables};

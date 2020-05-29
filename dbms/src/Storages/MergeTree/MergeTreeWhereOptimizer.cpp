@@ -43,7 +43,7 @@ namespace DB {
         if (!data.primary_key_columns.empty())
             first_primary_key_column = data.primary_key_columns[0];
 
-        calculateColumnSizes(data, queried_columns);
+        calculateColumnSizes(data, queried_columns);/// 用于构造column_sizes
         determineArrayJoinedNames(query_info.query->as<ASTSelectQuery &>());
         //具体的移动优化操作
         optimize(query_info.query->as<ASTSelectQuery &>());
@@ -52,7 +52,7 @@ namespace DB {
 
     void MergeTreeWhereOptimizer::calculateColumnSizes(const MergeTreeData &data, const Names &column_names) {
         for (const auto &column_name : column_names) {
-            UInt64 size = data.getColumnCompressedSize(column_name);
+            UInt64 size = data.getColumnCompressedSize(column_name);//根据列名name得到该列数据的大小(压缩后的数据的大小)
             column_sizes[column_name] = size;
             total_size_of_queried_columns += size;
         }
@@ -181,6 +181,9 @@ namespace DB {
         select.setExpression(ASTSelectQuery::Expression::PREWHERE, reconstruct(prewhere_conditions));
 
         LOG_DEBUG(log, "MergeTreeWhereOptimizer: condition \"" << select.prewhere() << "\" moved to PREWHERE");
+
+        //这里打印一下AST语法树, 可以看到如果优化了prewhere, 语法树结构会发生变化
+        select.dumpTree();
     }
 
 
@@ -189,7 +192,7 @@ namespace DB {
 
         for (const auto &identifier : identifiers)
             if (column_sizes.count(identifier))
-                size += column_sizes.at(identifier);
+                size += column_sizes.at(identifier);//at()方法返回对unordered_map中键为k的元素的映射值的引用. 如果k不匹配容器中任何元素的键, 该函数将抛出out_of_range异常
 
         return size;
     }
@@ -198,38 +201,42 @@ namespace DB {
     //算术操作符function->name != "equals"时, 直接返回false
     //取值不是UInt64、Int64和Float64三种类型, 直接返回false
     //其他情况将 取值 和 threshold=2 进行比较
+    /// 注意: 即使返回false, 也还是可能会进行prewhere优化, 具体还要看后面的判断
     bool MergeTreeWhereOptimizer::isConditionGood(const ASTPtr &condition) const {
         const auto *function = condition->as<ASTFunction>();
         if (!function)
             return false;
 
         /** we are only considering conditions of form `equals(one, another)` or `one = another`, especially if either `one` or `another` is ASTIdentifier */
-        // 只考虑取 等于 的情况
+        // 只考虑取 等于equals 的情况
         if (function->name != "equals")
             return false;
 
-        auto left_arg = function->arguments->children.front().get();
-        auto right_arg = function->arguments->children.back().get();
+        auto left_arg = function->arguments->children.front().get();//等号左边的参数: Identifier
+        auto right_arg = function->arguments->children.back().get();//等号右边的参数: Literal
 
-        /// try to ensure left_arg points to ASTIdentifier 确保left_arg指向ASTIdentifier
+        /// try to ensure left_arg points to ASTIdentifier
+        // 这一步是为了确保left_arg指向ASTIdentifier
         if (!left_arg->as<ASTIdentifier>() && right_arg->as<ASTIdentifier>())
             std::swap(left_arg, right_arg);
 
         if (left_arg->as<ASTIdentifier>()) {
             /// condition may be "good" if only right_arg is a constant and its value is outside the threshold
+            // 如果只有right_arg是常量且该常量值超出threshold, 则condition may be "good"
             if (const auto *literal = right_arg->as<ASTLiteral>()) {
                 const auto &field = literal->value;
                 const auto type = field.getType();
 
                 /// check the value with respect to threshold
-                //注意这里只比较取值是 UInt64、Int64和Float64三种情况, 取值是String的时候肯定返回false
-                if (type == Field::Types::UInt64) {
+                // 注意这里只比较取值是 UInt64、Int64和Float64三种类型的情况, 比较该值与threshold的关系
+                // 取值是String的时候肯定返回false
+                if (type == Field::Types::UInt64) {//对于UInt64类型, value > threshold, 则认为condition is "good"
                     const auto value = field.get<UInt64>();
                     return value > threshold;
-                } else if (type == Field::Types::Int64) {
+                } else if (type == Field::Types::Int64) {//对于Int64类型, |value| > threshold, 则认为condition is "good"
                     const auto value = field.get<Int64>();
                     return value < -threshold || threshold < value;
-                } else if (type == Field::Types::Float64) {
+                } else if (type == Field::Types::Float64) {//对于Float64类型, value <> threshold, 则认为condition is "good"
                     const auto value = field.get<Float64>();
                     return value < threshold || threshold < value;
                 }

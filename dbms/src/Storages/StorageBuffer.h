@@ -34,7 +34,8 @@ namespace DB {
   *  and a part of 800 000 rows is added, then there will be 1 300 000 rows in the buffer, and then such a block will be written to the subordinate table.
   *
   * When you destroy a Buffer table, all remaining data is flushed to the subordinate table.
-  * The data in the buffer is not replicated, not logged to disk, not indexed. With a rough restart of the server, the data is lost.
+  * The data in the buffer is not replicated, not logged to disk, not indexed.
+  * With a rough restart of the server, the data is lost.
   */
     class StorageBuffer : public ext::shared_ptr_helper<StorageBuffer>, public IStorage {
         friend class BufferBlockInputStream;

@@ -33,7 +33,7 @@ ConvertingBlockInputStream::ConvertingBlockInputStream(
     const Context & context_,
     const BlockInputStreamPtr & input,
     const Block & result_header,
-    MatchColumnsMode mode)
+    MatchColumnsMode mode) //mode = MatchColumnsMode::Position
     : context(context_), header(result_header), conversion(header.columns())
 {
     children.emplace_back(input);

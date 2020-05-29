@@ -6,37 +6,45 @@
 #include <Common/Stopwatch.h>
 
 
-namespace ProfileEvents {
+namespace ProfileEvents
+{
     extern const Event NetworkReceiveElapsedMicroseconds;
 }
 
 
-namespace DB {
+namespace DB
+{
 
-    namespace ErrorCodes {
+    namespace ErrorCodes
+    {
         extern const int NETWORK_ERROR;
         extern const int SOCKET_TIMEOUT;
         extern const int CANNOT_READ_FROM_SOCKET;
     }
 
 
-    bool ReadBufferFromPocoSocket::nextImpl() {
+    bool ReadBufferFromPocoSocket::nextImpl()
+    {
         ssize_t bytes_read = 0;
         Stopwatch watch;
 
         /// Add more details to exceptions.
-        try {
+        try
+        {
             bytes_read = socket.impl()->receiveBytes(internal_buffer.begin(), internal_buffer.size());
         }
-        catch (const Poco::Net::NetException &e) {
+        catch (const Poco::Net::NetException &e)
+        {
             throw NetException(e.displayText() + ", while reading from socket (" + peer_address.toString() + ")",
                                ErrorCodes::NETWORK_ERROR);
         }
-        catch (const Poco::TimeoutException &) {
+        catch (const Poco::TimeoutException &)
+        {
             throw NetException("Timeout exceeded while reading from socket (" + peer_address.toString() + ")",
                                ErrorCodes::SOCKET_TIMEOUT);
         }
-        catch (const Poco::IOException &e) {
+        catch (const Poco::IOException &e)
+        {
             throw NetException(e.displayText() + ", while reading from socket (" + peer_address.toString() + ")",
                                ErrorCodes::NETWORK_ERROR);
         }
@@ -57,12 +65,17 @@ namespace DB {
     }
 
     ReadBufferFromPocoSocket::ReadBufferFromPocoSocket(Poco::Net::Socket &socket_, size_t buf_size)
-            : BufferWithOwnMemory<ReadBuffer>(buf_size), socket(socket_), peer_address(socket.peerAddress()) {
+            : BufferWithOwnMemory<ReadBuffer>(buf_size), socket(socket_), peer_address(socket.peerAddress())
+    {
     }
 
-    bool ReadBufferFromPocoSocket::poll(size_t timeout_microseconds) {
+    // offset() != buffer().size() 表示(ReadBuffer的)working_buffer还没有写满;
+    // socket.poll() 方法 是指是否经过了指定的时间间隔
+    // || 表示 逻辑或 ; | 表示按位或
+    bool ReadBufferFromPocoSocket::poll(size_t timeout_microseconds)
+    {
         return offset() != buffer().size() ||
-               socket.poll(timeout_microseconds, Poco::Net::Socket::SELECT_READ | Poco::Net::Socket::SELECT_ERROR);
+               socket.poll(timeout_microseconds, Poco::Net::Socket::SELECT_READ | Poco::Net::Socket::SELECT_ERROR); //Poco::Net::Socket::SELECT_READ | Poco::Net::Socket::SELECT_ERROR = 0001 | 0100 = 01001
     }
 
 }

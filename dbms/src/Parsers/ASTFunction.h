@@ -7,10 +7,11 @@
 namespace DB {
 
 /** AST for function application or operator.
+  * 针对 函数应用/操作符 的AST节点
   */
     class ASTFunction : public ASTWithAlias {
     public:
-        String name;    //关系操作符, 可能的取值包括"equals"、"greater"、"and"、"or"、"not"等等
+        String name;    //关系操作符, 可能的取值包括"arrayJoin"、"in"、"notin"、"globalin"、"globalNotIn"、"indexHint"、"equals"、"greater"、"and"、"or"、"not"等等
         ASTPtr arguments;  //常量, 应该是表中的某个列名
         /// parameters - for parametric aggregate function. Example: quantile(0.9)(x) - what in first parens are 'parameters'.
         ASTPtr parameters;  //变量, 应该是表中的某个列的具体取值

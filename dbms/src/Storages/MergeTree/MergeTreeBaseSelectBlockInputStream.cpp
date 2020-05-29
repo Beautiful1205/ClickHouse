@@ -50,7 +50,7 @@ namespace DB {
             if (!task && !getNewTask())
                 break;
 
-            res = readFromPart();
+            res = readFromPart();//重点方法
 
             if (res)
                 injectVirtualColumns(res);

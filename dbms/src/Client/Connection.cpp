@@ -164,7 +164,7 @@ namespace DB {
         writeVarUInt(DBMS_VERSION_MAJOR, *out);                //将"19"写到out中 (最终会用\x13表示数字19)
         writeVarUInt(DBMS_VERSION_MINOR, *out);                //将"8"写到out中  (最终会用\b表示数字8)
         // NOTE For backward compatibility of the protocol, client cannot send its version_patch.
-        writeVarUInt(ClickHouseRevision::get(), *out);         //将"54420"写到out中(最终会用\x94\a9\03表示数字8)
+        writeVarUInt(ClickHouseRevision::get(), *out);         //将"54420"写到out中(最终会用\x94\a9\03表示数字54420)
         writeStringBinary(default_database, *out);
         writeStringBinary(user, *out);
         writeStringBinary(password, *out);
@@ -332,7 +332,7 @@ namespace DB {
             UInt64 stage,
             const Settings *settings,
             const ClientInfo *client_info,
-            bool with_pending_data) {
+            bool with_pending_data) {//with_pending_data = true
         if (!connected)
             connect();
 
@@ -396,7 +396,7 @@ namespace DB {
 
         /// Send empty block which means end of data.
         if (!with_pending_data) {
-            sendData(Block());
+            sendData(Block());//这个方法是发送了一个空的block, 表示数据发送完了
             out->next();
         }
     }

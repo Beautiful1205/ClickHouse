@@ -54,7 +54,7 @@ struct ScopeStack
 
 
 /// Collect ExpressionAction from AST. Returns PreparedSets and SubqueriesForSets too.
-/// After AST is visited source ExpressionActions should be updated with popActionsLevel() method.
+/// After AST is visited, source ExpressionActions should be updated with popActionsLevel() method.
 class ActionsVisitor
 {
 public:

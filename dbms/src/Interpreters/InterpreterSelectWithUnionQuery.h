@@ -6,14 +6,16 @@
 #include <Interpreters/SelectQueryOptions.h>
 
 
-namespace DB {
+namespace DB
+{
 
     class InterpreterSelectQuery;
 
 
 /** Interprets one or multiple SELECT queries inside UNION ALL chain.
   */
-    class InterpreterSelectWithUnionQuery : public IInterpreter {
+    class InterpreterSelectWithUnionQuery : public IInterpreter
+    {
     public:
         InterpreterSelectWithUnionQuery(
                 const ASTPtr &query_ptr_,
@@ -36,7 +38,8 @@ namespace DB {
 
         void ignoreWithTotals();
 
-        ASTPtr getQuery() const { return query_ptr; }
+        ASTPtr getQuery() const
+        { return query_ptr; }
 
     private:
         const SelectQueryOptions options;
@@ -45,7 +48,7 @@ namespace DB {
 
         std::vector<std::unique_ptr<InterpreterSelectQuery>> nested_interpreters;
 
-        Block result_header;
+        Block result_header;//最终结果的数据结构(表头)
     };
 
 }

@@ -11,7 +11,7 @@
 namespace DB
 {
 
-
+//将 压缩文件中的解压缩block 缓存在这个buffer中
 /** A buffer for reading from a compressed file using the cache of decompressed blocks.
   * The external cache is passed as an argument to the constructor.
   * Allows you to increase performance in cases where the same blocks are often read.

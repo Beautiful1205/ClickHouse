@@ -21,6 +21,8 @@ class WriteBuffer;
 
 /** Allows to create an IBlockInputStream or IBlockOutputStream by the name of the format.
   * Note: format and compression are independent things.
+  *
+  * 根据文件格式创建IBlockInputStream 或 IBlockOutputStream
   */
 class FormatFactory final : public ext::singleton<FormatFactory>
 {

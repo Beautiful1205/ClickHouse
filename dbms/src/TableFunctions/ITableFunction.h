@@ -12,8 +12,10 @@ namespace DB
 
 class Context;
 
-/** Interface for table functions.
+/** Interface for table functions. 表函数接口
   *
+  * 这里的表函数和其他函数无关. 表函数和[db.]Table的含义一样, 表示数据的来源.
+  * 表函数返回一个用于执行查询的临时StoragePtr对象
   * Table functions are not relevant to other functions.
   * The table function can be specified in the FROM section instead of the [db.]Table
   * The table function returns a temporary StoragePtr object that is used to execute the query.

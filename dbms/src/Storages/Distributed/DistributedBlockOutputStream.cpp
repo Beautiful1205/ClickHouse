@@ -176,7 +176,7 @@ void DistributedBlockOutputStream::waitForJobs()
 {
     pool->wait();
 
-    if (insert_timeout)
+    if (insert_timeout)//如果设置了超时时间, 且当前线程执行时间大于该超时时间, 会抛出异常
     {
         if (static_cast<UInt64>(watch.elapsedSeconds()) > insert_timeout)
         {
@@ -309,7 +309,7 @@ void DistributedBlockOutputStream::writeSync(const Block & block)
 
     if (!pool)
     {
-        /// Deferred initialization. Only for sync insertion.
+        /// Deferred initialization. Only for sync insertion. 延迟初始化. 仅用于同步插入
         initWritingJobs(block);
 
         pool.emplace(remote_jobs_count + local_jobs_count);

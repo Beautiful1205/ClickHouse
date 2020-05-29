@@ -63,6 +63,7 @@ public:
     void createLowCardinalityResultCache(size_t cache_size);
 
 protected:
+    //通过这个executeImpl()方法找到各个函数的具体实现
     virtual void executeImpl(Block & block, const ColumnNumbers & arguments, size_t result, size_t input_rows_count) = 0;
     virtual void executeImplDryRun(Block & block, const ColumnNumbers & arguments, size_t result, size_t input_rows_count)
     {
@@ -88,7 +89,8 @@ protected:
       * Otherwise, convert all low cardinality columns to ordinary columns.
       * Returns ColumnLowCardinality if at least one argument is ColumnLowCardinality.
       */
-      //（基数是数据列所包含的不同值的数量。比如性别列，该列只有男女之分，所以这一列基数是2。主键列的基数等于表的总行数。基数的高低影响列的数据分布。基数小, 数据分布不均匀, 索引的作用不大）
+      //（基数是数据列所包含的不同值的数量。比如性别列，该列只有男女之分，所以这一列基数是2。
+      // 主键列的基数等于表的总行数。基数的高低影响列的数据分布。基数小, 数据分布不均匀, 索引的作用不大）
     // 如果函数参数有一个低基数列, 而所有其他参数都是常量, 则在嵌套列上调用函数.
     // 否则, 将所有低基数列转换为普通列.
     // 如果至少有一个参数是ColumnLowCardinality, 则返回ColumnLowCardinality
@@ -129,7 +131,7 @@ public:
     virtual const DataTypes & getArgumentTypes() const = 0;
     virtual const DataTypePtr & getReturnType() const = 0;
 
-    /// Do preparations and return executable.
+    /// Do preparations and return executable.            进行准备工作, 返回可执行的对象
     /// sample_block should contain data types of arguments and values of constants, if relevant.
     virtual PreparedFunctionPtr prepare(const Block & sample_block, const ColumnNumbers & arguments, size_t result) const = 0;
 

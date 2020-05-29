@@ -37,6 +37,7 @@ namespace DB {
          * required_result_column_names
          * - don't calculate all columns except the specified ones from the query
          *  - it is used to remove calculation (and reading) of unnecessary columns from subqueries.
+         *
          *   empty means - use all columns.
          */
 
@@ -44,7 +45,7 @@ namespace DB {
                 const ASTPtr &query_ptr_,
                 const Context &context_,
                 const SelectQueryOptions &,
-                const Names &required_result_column_names = Names{});
+                const Names &required_result_column_names = Names{}); //required_result_column_names为空表示使用所有列. 默认使用所有列
 
         /// Read data not from the table specified in the query, but from the prepared source `input`.
         InterpreterSelectQuery(
@@ -172,8 +173,7 @@ namespace DB {
             FilterInfoPtr filter_info;             //filter信息
         };
 
-        AnalysisResult
-        analyzeExpressions(QueryProcessingStage::Enum from_stage, bool dry_run, const FilterInfoPtr &filter_info);
+        AnalysisResult analyzeExpressions(QueryProcessingStage::Enum from_stage, bool dry_run, const FilterInfoPtr &filter_info);
 
 
         /** From which table to read. With JOIN, the "left" table is returned.

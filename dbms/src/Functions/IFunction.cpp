@@ -367,7 +367,7 @@ namespace DB {
     //这个方法重点看下
     void PreparedFunctionImpl::execute(Block &block, const ColumnNumbers &args, size_t result, size_t input_rows_count,
                                        bool dry_run) {
-        //对低基数列使用Default实现 (低基数列是指某列可选的取值较低, 这列数据取值的重复性较高)
+        //对低基数列使用Default实现 (低基数列是指某列可选的取值较少, 这列数据取值的重复性较高)
         //对高基数列使用其他实现
 
         if (useDefaultImplementationForLowCardinalityColumns()) {

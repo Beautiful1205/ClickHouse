@@ -9,7 +9,7 @@ namespace DB {
     M(Whitespace) \
     M(Comment) \
     \
-    M(BareWord)               /** Either keyword (SELECT) or identifier (column)  表示该token是关键字或者是表的某个列名 */ \
+    M(BareWord)               /** Either keyword (SELECT) or identifier (column)  表示该token是关键字或标识符 */ \
     \
     M(Number)                 /** Always non-negative. No leading plus. 123 or something like 123.456e12, 0x123p12 */ \
     M(StringLiteral)          /** 'hello word', 'hello''word', 'hello\'word\\' */ \

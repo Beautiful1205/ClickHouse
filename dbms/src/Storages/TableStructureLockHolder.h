@@ -7,6 +7,7 @@ namespace DB
 
 /// Structs that hold table structure (columns, their types, default values etc.) locks when executing queries.
 /// See IStorage::lock* methods for comments.
+//持有表结构的锁, 使表结构在执行查询期间, 列、类型、默认值等不发生变化
 
 struct TableStructureWriteLockHolder
 {

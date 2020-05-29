@@ -95,6 +95,8 @@ static void validateChecksum(char * data, size_t size, const Checksum expected_c
 
 /// Read compressed data into compressed_buffer. Get size of decompressed data from block header. Checksum if need.
 /// Returns number of compressed bytes read.
+//将compressed data读取到compressed_buffer中. block的header中保存这解压后数据的大小和Checksum.
+//返回读取到的压缩数据的字节大小
 size_t CompressedReadBufferBase::readCompressedData(size_t & size_decompressed, size_t & size_compressed_without_checksum)
 {
     if (compressed_in->eof())

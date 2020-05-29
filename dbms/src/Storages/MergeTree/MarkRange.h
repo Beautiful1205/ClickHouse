@@ -8,8 +8,10 @@ namespace DB {
 
 
 /** A pair of marks that defines the range of rows in a part.
- *  Specifically, the range has the form [begin * index_granularity, end * index_granularity).
+  *  Specifically, the range has the form [begin * index_granularity, end * index_granularity].
   */
+/**确定part行范围的一对标记. 范围的形式是[begin * index_granularity, end * index_granularity].
+ */
     struct MarkRange {
         size_t begin;
         size_t end;

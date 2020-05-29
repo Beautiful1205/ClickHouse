@@ -161,7 +161,7 @@ namespace DB {
     };
 
 
-/** Contains a sequence of actions on the block.
+/** Contains a sequence of actions on the block. 包含需要对block进行的一系列操作
   */
     class ExpressionActions {
     public:
@@ -292,6 +292,8 @@ namespace DB {
   *     1) evaluate the expression in the WHERE clause,
   *     2) calculate the expression in the SELECT section,
   * and between the two steps do the filtering by value in the WHERE clause.
+  *
+  * 例如, 根据where子句和select子句建立一个操作链路, 这两部中间根据where子句执行过滤操作
   */
     //block上的一些列的转化操作, step1, step2, step3....
     struct ExpressionActionsChain {

@@ -155,12 +155,12 @@ namespace DB {
 
         /** Read a set of columns from the table.
           * Accepts a list of columns to read, as well as a description of the query,
-          *  from which information can be extracted about how to retrieve data
-          *  (indexes, locks, etc.)
+          *  from which information can be extracted about how to retrieve data (indexes, locks, etc.)
+          *  读取表中的多个列的数据, 也读取关于查询的索引、锁等信息
           *
-          * Returns a stream with which you can read data sequentially
-          *  or multiple streams for parallel data reading.
+          * Returns a stream with which you can read data sequentially or multiple streams for parallel data reading.
           * The `processed_stage` must be the result of getQueryProcessingStage() function.
+          * 返回的结果是一个顺序读取数据流 或者 多个并行读取数据流
           *
           * context contains settings for one query.
           * Usually Storage does not care about these settings, since they are used in the interpreter.
@@ -186,7 +186,8 @@ namespace DB {
           * Receives a description of the query, which can contain information about the data write method.
           * Returns an object by which you can write data sequentially.
           *
-          * It is guaranteed that the table structure will not change over the lifetime of the returned streams (that is, there will not be ALTER, RENAME and DROP).
+          * It is guaranteed that the table structure will not change over the lifetime of the returned streams
+          * (that is, there will not be ALTER, RENAME and DROP).
           */
         virtual BlockOutputStreamPtr write(
                 const ASTPtr & /*query*/,
@@ -279,6 +280,7 @@ namespace DB {
         bool is_dropped{false};
 
         /// Does table support index for IN sections
+        // 表引擎是否支持在IN子句中使用index
         virtual bool supportsIndexForIn() const { return false; }
 
         /// Provides a hint that the storage engine may evaluate the IN-condition by using an index.
@@ -355,6 +357,8 @@ namespace DB {
         /// Lock for the table column structure (names, types, etc.) and data path.
         /// It is taken in exclusive mode by queries that modify them (e.g. RENAME, ALTER and DROP)
         /// and in share mode by other queries.
+        // 锁定表列结构(名称、类型等)和数据路径.
+        // 在独占模式下, 该锁由修改表的query持有; 在共享模式下由其他查询获取。
         mutable RWLock structure_lock = RWLockImpl::create();
     };
 

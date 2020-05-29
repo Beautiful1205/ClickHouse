@@ -8,6 +8,7 @@ namespace DB
 {
 
 /** Merging consecutive blocks of stream to specified minimum size.
+  * 将stream中连续的小的block合并成一个大的block
   */
 class SquashingBlockOutputStream : public IBlockOutputStream
 {

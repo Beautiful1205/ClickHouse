@@ -18,7 +18,7 @@ class RWLockImpl;
 using RWLock = std::shared_ptr<RWLockImpl>;
 
 
-/// Implements shared lock with FIFO service
+/// Implements shared lock with FIFO service  共享锁  FIFO  在Read模式下可以递归获取
 /// Can be acquired recursively (several calls for the same query or the same OS thread) in Read mode
 ///
 /// NOTE: it is important to allow acquiring the same lock in Read mode without waiting if it is already
@@ -26,6 +26,7 @@ using RWLock = std::shared_ptr<RWLockImpl>;
 /// - SELECT thread 1 locks in the Read mode
 /// - ALTER tries to lock in the Write mode (waits for SELECT thread 1)
 /// - SELECT thread 2 tries to lock in the Read mode (waits for ALTER)
+//在Read模式下, 对于同一个query, 如果其中一个线程已经获得了lock, 那么另外的线程在获取同一个lock时无需等待. 否则可能造成死锁
 class RWLockImpl : public std::enable_shared_from_this<RWLockImpl>
 {
 public:

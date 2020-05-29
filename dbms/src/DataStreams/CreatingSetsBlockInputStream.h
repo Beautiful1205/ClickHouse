@@ -10,10 +10,10 @@ namespace Poco { class Logger; }
 namespace DB
 {
 
-/** Returns the data from the stream of blocks without changes, but
-  * in the `readPrefix` function or before reading the first block
-  * initializes all the passed sets.
+/** Returns the data from the stream of blocks without changes,
+  * but in the `readPrefix` function or before reading the first block, initializes all the passed sets.
   */
+//从块流中返回数据, 不做任何更改. 但在readPrefix()方法中或在读取第一个块之前, 初始化所有传递的sets
 class CreatingSetsBlockInputStream : public IBlockInputStream
 {
 public:

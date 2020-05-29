@@ -204,7 +204,7 @@ void ScopeStack::addAction(const ExpressionAction & action)
         level = std::max(level, getColumnLevel(required[i]));
 
     Names added;
-    stack[level].actions->add(action, added);
+    stack[level].actions->add(action, added);//重点//
 
     stack[level].new_columns.insert(added.begin(), added.end());
 
@@ -262,7 +262,7 @@ void ActionsVisitor::visit(const ASTPtr & ast)
         return ast_column_name;
     };
 
-    /// If the result of the calculation already exists in the block.
+    /// If the result of the calculation already exists in the block. 如果block中保存的已经是计算的结果, 就直接返回
     if ((ast->as<ASTFunction>() || ast->as<ASTLiteral>()) && actions_stack.getSampleBlock().has(getColumnName()))
         return;
 
@@ -287,7 +287,7 @@ void ActionsVisitor::visit(const ASTPtr & ast)
                 actions_stack.addAction(ExpressionAction::addAliases({{identifier->name, identifier->alias}}));
         }
     }
-    else if (const auto * node = ast->as<ASTFunction>())
+    else if (const auto * node = ast->as<ASTFunction>())//节点为函数
     {
         if (node->name == "lambda")
             throw Exception("Unexpected lambda expression", ErrorCodes::UNEXPECTED_EXPRESSION);
@@ -306,30 +306,33 @@ void ActionsVisitor::visit(const ASTPtr & ast)
                 actions_stack.addAction(ExpressionAction::copyColumn(arg->getColumnName(), result_name));
                 NameSet joined_columns;
                 joined_columns.insert(result_name);
+                //重点//
                 actions_stack.addAction(ExpressionAction::arrayJoin(joined_columns, false, context));
             }
 
             return;
         }
 
+        /// Function in / notin / globalin / globalnotin.
         SetPtr prepared_set;
         if (functionIsInOrGlobalInOperator(node->name))
         {
             /// Let's find the type of the first argument (then getActionsImpl will be called again and will not affect anything).
             visit(node->arguments->children.at(0));
 
-            if (!no_subqueries)
+            if (!no_subqueries)//如果有子查询, 把所有的子查询放到一个Set集合里面
             {
                 /// Transform tuple or subquery into a set.
                 prepared_set = makeSet(node, actions_stack.getSampleBlock());
             }
             else
             {
-                if (!only_consts)
+                if (!only_consts)//in()函数的条件中不是只有常量 (变量与常量共存？？)
                 {
                     /// We are in the part of the tree that we are not going to compute. You just need to define types.
                     /// Do not subquery and create sets. We treat "IN" as "ignoreExceptNull" function.
 
+                    //重点//  in()函数的条件中既有常量又有变量, 将IN看成ignoreExceptNull函数对待. (ignoreExceptNull(...)是一个可以接受任何参数的函数, 并且始终返回0(不会返回Null))
                     actions_stack.addAction(ExpressionAction::applyFunction(
                             FunctionFactory::instance().get("ignoreExceptNull", context),
                             { node->arguments->children.at(0)->getColumnName() },
@@ -340,15 +343,17 @@ void ActionsVisitor::visit(const ASTPtr & ast)
         }
 
         /// A special function `indexHint`. Everything that is inside it is not calculated
-        /// (and is used only for index analysis, see KeyCondition).
+        /// (and is used only for index analysis, see KeyCondition).                        用于索引分析的一个函数
         if (node->name == "indexHint")
         {
+            //重点//
             actions_stack.addAction(ExpressionAction::addColumn(ColumnWithTypeAndName(
                 ColumnConst::create(ColumnUInt8::create(1, 1), 1), std::make_shared<DataTypeUInt8>(),
                     getColumnName())));
             return;
         }
 
+        //只处理一般的函数, 不处理聚合函数. 如果是聚合函数, 直接返回
         if (AggregateFunctionFactory::instance().isAggregateFunctionName(node->name))
             return;
 
@@ -357,6 +362,7 @@ void ActionsVisitor::visit(const ASTPtr & ast)
             ? context.getQueryContext()
             : context;
 
+        //其他一般函数
         FunctionBuilderPtr function_builder;
         try
         {
@@ -574,6 +580,7 @@ SetPtr ActionsVisitor::makeSet(const ASTFunction * node, const Block & sample_bl
         }
 
         /// We get the stream of blocks for the subquery. Create Set and put it in place of the subquery.
+        //构造子查询的stream. 然后将子查询替换成stream
         String set_id = arg->getColumnName();
 
         SubqueryForSet & subquery_for_set = subqueries_for_sets[set_id];
@@ -587,6 +594,7 @@ SetPtr ActionsVisitor::makeSet(const ASTFunction * node, const Block & sample_bl
 
         SetPtr set = std::make_shared<Set>(set_size_limit, false);
 
+        //GLOBAL IN 的实现原理
         /** The following happens for GLOBAL INs:
           * - in the addExternalStorage function, the IN (SELECT ...) subquery is replaced with IN _data1,
           *   in the subquery_for_set object, this subquery is set as source and the temporary table _data1 as the table.
@@ -594,16 +602,17 @@ SetPtr ActionsVisitor::makeSet(const ASTFunction * node, const Block & sample_bl
           */
         if (!subquery_for_set.source && no_storage_or_local)
         {
+            //为子查询构造了一个执行器interpreter
             auto interpreter = interpretSubquery(arg, context, subquery_depth, {});
-            subquery_for_set.source = std::make_shared<LazyBlockInputStream>(
-                interpreter->getSampleBlock(), [interpreter]() mutable { return interpreter->execute().in; });
+            //构造了一个LazyBlockInputStream
+            subquery_for_set.source = std::make_shared<LazyBlockInputStream>(interpreter->getSampleBlock(), [interpreter]() mutable { return interpreter->execute().in; });
 
-            /** Why is LazyBlockInputStream used?
+            /** Why is LazyBlockInputStream used?  构造LazyBlockInputStream的原因
               *
-              * The fact is that when processing a query of the form
-              *  SELECT ... FROM remote_test WHERE column GLOBAL IN (subquery),
+              * The fact is that when processing a query of the form : SELECT ... FROM remote_test WHERE column GLOBAL IN (subquery),
               *  if the distributed remote_test table contains localhost as one of the servers,
               *  the query will be interpreted locally again (and not sent over TCP, as in the case of a remote server).
+              *  如果分布式表包含localhost作为其中一个服务器, 则查询将再次在本地执行（而不是像远程服务器那样通过TCP发送）
               *
               * The query execution pipeline will be:
               * CreatingSets
@@ -613,7 +622,8 @@ SetPtr ActionsVisitor::makeSet(const ASTFunction * node, const Block & sample_bl
               *   read from the table subordinate to remote_test.
               *
               * (The second part of the pipeline under CreateSets is a reinterpretation of the query inside StorageDistributed,
-              *  the query differs in that the database name and tables are replaced with subordinates, and the subquery is replaced with _data1.)
+              *  the query differs in that the database name and tables are replaced with subordinates,
+              *  and the subquery is replaced with _data1.)
               *
               * But when creating the pipeline, when creating the source (2), it will be found that the _data1 table is empty
               *  (because the query has not started yet), and empty source will be returned as the source.

@@ -7,7 +7,7 @@
 namespace DB
 {
 
-/** Convert one block structure to another:
+/** Convert one block structure to another: 转换block的结构
   *
   * Leaves only necessary columns;
   *
@@ -26,9 +26,9 @@ public:
     enum class MatchColumnsMode
     {
         /// Require same number of columns in source and result. Match columns by corresponding positions, regardless to names.
-        Position,
+        Position, //表示这种模式下, 互相UNION的结果列的数量要一致(列名不需要一致)
         /// Find columns in source by their names. Allow excessive columns in source.
-        Name
+        Name      //表示这种模式下, 互相UNION的结果列的名称要一致
     };
 
     ConvertingBlockInputStream(

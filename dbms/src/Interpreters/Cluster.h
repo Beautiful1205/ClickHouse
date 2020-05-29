@@ -67,7 +67,7 @@ namespace DB {
             /// This database is selected when no database is specified for Distributed table
             String default_database;
             /// The locality is determined at the initialization, and is not changed even if DNS is changed
-            bool is_local;//在初始化时确定, 不因DNS改变而改变
+            bool is_local;//locality属性是在初始化时确定的, 不因DNS改变而改变
             bool user_specified = false;
 
             Protocol::Compression compression = Protocol::Compression::Enable;

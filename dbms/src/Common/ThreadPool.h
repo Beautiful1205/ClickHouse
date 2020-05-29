@@ -18,7 +18,9 @@
   * Advantages:
   * - catches exceptions and rethrows on wait.
   *
-  * This thread pool can be used as a task queue.
+  * 很简单的线程池, 类似于boost::threadpool. 优点在于: 可以捕获异常, 并在调用wait()方法时重新抛出异常
+  *
+  * This thread pool can be used as a task queue.    此线程池可用作任务队列
   * For example, you can create a thread pool with 10 threads (and queue of size 10) and schedule 1000 tasks
   * - in this case you will be blocked to keep 10 tasks in fly.
   *
@@ -31,26 +33,35 @@ public:
     using Job = std::function<void()>;
 
     /// Size is constant. Up to num_threads are created on demand and then run until shutdown.
+    // max_threads是个常量. 最多可以按需创建max_threads个线程, 然后运行直至关闭
     explicit ThreadPoolImpl(size_t max_threads);
 
     /// queue_size - maximum number of running plus scheduled jobs. It can be greater than max_threads. Zero means unlimited.
+    // max_threads: 最多可以按需创建max_threads个线程
+    //max_free_threads:
+    // queue_size: running jobs + scheduled jobs的数量. 它可以大于max_threads. 零意味着无限大
     ThreadPoolImpl(size_t max_threads, size_t max_free_threads, size_t queue_size);
 
     /// Add new job. Locks until number of scheduled jobs is less than maximum or exception in one of threads was thrown.
     /// If an exception in some thread was thrown, method silently returns, and exception will be rethrown only on call to 'wait' function.
-    /// Priority: greater is higher.
+    /// Priority: greater is higher. priority的值越大, 优先级越高.
+    // schedule()方法用于向线程池提交一个新的job.
+    // 新提交的job不会立即运行, 直到线程池中scheduled jobs < max_threads 或者 某个线程抛出了异常.
+    // 如果某个线程抛了异常, 则方法将静默返回, 并且只有在调用wait()方法时才会重新抛出异常
     void schedule(Job job, int priority = 0);
 
     /// Wait for specified amount of time and schedule a job or return false.
+    // 等待指定的时间并向线程池提交一个新的job 或 返回false
     bool trySchedule(Job job, int priority = 0, uint64_t wait_microseconds = 0);
 
     /// Wait for specified amount of time and schedule a job or throw an exception.
+    // 等待指定的时间并向线程池提交一个新的job 或 抛出异常
     void scheduleOrThrow(Job job, int priority = 0, uint64_t wait_microseconds = 0);
 
-    /// Wait for all currently active jobs to be done.
-    /// You may call schedule and wait many times in arbitary order.
-    /// If any thread was throw an exception, first exception will be rethrown from this method,
-    ///  and exception will be cleared.
+    /// Wait for all currently active jobs to be done. You may call schedule and wait many times in arbitary order.
+    /// If any thread was throw an exception, first exception will be rethrown from this method, and exception will be cleared.
+    // 等待active jobs运行完成. 可以按照任意顺序调用schedule()方法和wait()方法.
+    // 如果某个线程抛了异常, 只有在调用wait()方法时第一次抛出异常, 然后exception will be cleared.
     void wait();
 
     /// Waits for all threads. Doesn't rethrow exceptions (use 'wait' method to rethrow exceptions).
@@ -58,6 +69,7 @@ public:
     ~ThreadPoolImpl();
 
     /// Returns number of running and scheduled jobs.
+    // running jobs + scheduled jobs的数量
     size_t active() const;
 
 private:
@@ -107,15 +119,22 @@ using FreeThreadPool = ThreadPoolImpl<std::thread>;
 /** Global ThreadPool that can be used as a singleton.
   * Why it is needed?
   *
+  * 可以用作单例的全局线程池.
+  *
   * Linux can create and destroy about 100 000 threads per second (quite good).
-  * With simple ThreadPool (based on mutex and condvar) you can assign about 200 000 tasks per second
-  * - not much difference comparing to not using a thread pool at all.
+  * With simple ThreadPool (based on mutex and condvar) you can assign about 200 000 tasks per second - not much difference comparing to not using a thread pool at all.
   *
   * But if you reuse OS threads instead of creating and destroying them, several benefits exist:
-  * - allocator performance will usually be better due to reuse of thread local caches, especially for jemalloc:
-  *   https://github.com/jemalloc/jemalloc/issues/1347
+  * - allocator performance will usually be better due to reuse of thread local caches, especially for jemalloc: https://github.com/jemalloc/jemalloc/issues/1347
   * - address sanitizer and thread sanitizer will not fail due to global limit on number of created threads.
   * - program will work faster in gdb;
+  *
+  * Linux每秒可以创建和销毁大约10万个线程
+  * 使用 ThreadPool(基于mutex和condvar), 每秒可以分配大约20万个任务. 与不使用线程池相比, 性能差别不大.
+  * 如果能够重用操作系统线程, 而不是频繁创建和销毁线程, 这样做哦会有很多优势:
+  *  1: 由于线程本地缓存的重用， 分配器allocator的性能通常会更好，特别是对于jemalloc而言;
+  *  2: 由于对创建的线程数的全局限制, 地址清理程序和线程清理程序不会失败;
+  *  3: 程序将在gdb中运行得更快 (gdb是GNU开源组织发布的, UNIX/Linux操作系统下, 基于命令行, 功能强大的程序调试工具)
   */
 class GlobalThreadPool : public FreeThreadPool, public ext::singleton<GlobalThreadPool>
 {
@@ -197,11 +216,12 @@ private:
 
 
 /// Recommended thread pool for the case when multiple thread pools are created and destroyed.
-// 建议在创建和销毁多个线程时使用线程池。
+// 建议在创建和销毁多个线程时使用线程池
 using ThreadPool = ThreadPoolImpl<ThreadFromGlobalPool>;
 
 
 /// Allows to save first catched exception in jobs and postpone its rethrow.
+// 允许在作业中保存第一个捕获的异常并推迟其抛出时间
 class ExceptionHandler
 {
 public:

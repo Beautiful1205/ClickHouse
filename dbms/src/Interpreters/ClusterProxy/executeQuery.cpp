@@ -63,7 +63,7 @@ BlockInputStreams executeQuery(
     else
         throttler = user_level_throttler;
 
-    //遍历数据的所有的分片，针对每个分片
+    //遍历数据的所有的分片, 针对每个分片
     for (const auto & shard_info : cluster->getShardsInfo())
         stream_factory.createForShard(shard_info, query, query_ast, new_context, throttler, res);
 

@@ -25,13 +25,25 @@ class StorageDistributed;
 
 /** If insert_sync_ is true, the write is synchronous. Uses insert_timeout_ if it is not zero.
  *  Otherwise, the write is asynchronous - the data is first written to the local filesystem, and then sent to the remote servers.
+ *
+ * 如果设置了insert_distributed_sync=1, 则数据写入是同步的. 如果insert_distributed_timeout参数设置不等于0, 会使用这个参数.
+ * 否则数据写入就是异步的, 即数据先写到本地文件系统, 再发送给远程server.
+ *
  *  If the Distributed table uses more than one shard, then in order to support the write,
  *  when creating the table, an additional parameter must be specified for ENGINE - the sharding key.
  *  Sharding key is an arbitrary expression from the columns. For example, rand() or UserID.
+ *
+ * 如果分布式表有多个分片, 为支持数据写入, 在建表的时候必须指定分片键(sharding key). Sharding key是跟列有关的任意表达式, 如 rand() 或 UserID.
+ *
  *  When writing, the data block is splitted by the remainder of the division of the sharding key by the total weight of the shards,
  *  and the resulting blocks are written in a compressed Native format in separate directories for sending.
  *  For each destination address (each directory with data to send), a separate thread is created in StorageDistributed,
- *  which monitors the directory and sends data. */
+ *  which monitors the directory and sends data.
+ *
+ * 写入数据的时候, 计算sharding key 除以 shard的权重 的余数, 根据余数将block分割成多个block.
+ * 分割后的block会以压缩的本机格式写入不同的目录中, 以供发送给不用的shard.
+ * 对于每个目录, 会启一个单独的线程来监控并发送数据.
+ */
 class DistributedBlockOutputStream : public IBlockOutputStream
 {
 public:

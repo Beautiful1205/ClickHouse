@@ -27,7 +27,7 @@ const char * ParserKeyword::getName() const
 
 bool ParserKeyword::parseImpl(Pos & pos, ASTPtr & /*node*/, Expected & expected)
 {
-    if (pos->type != TokenType::BareWord)
+    if (pos->type != TokenType::BareWord) //BareWord表示该token是关键字或标识符
         return false;
 
     const char * current_word = s;
@@ -50,6 +50,7 @@ bool ParserKeyword::parseImpl(Pos & pos, ASTPtr & /*node*/, Expected & expected)
         if (word_length != pos->size())
             return false;
 
+        //strncasecmp()用来比较参数s1和s2字符串前n个字符, 比较时会自动忽略大小写的差异. 若参数s1和s2字符串相同, 则返回0; 不相同, 则返回1
         if (strncasecmp(pos->begin, current_word, word_length))
             return false;
 

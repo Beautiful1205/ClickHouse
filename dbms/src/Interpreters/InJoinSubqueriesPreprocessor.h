@@ -30,6 +30,9 @@ class Context;
   * - or replace database and table name in subquery to remote database and table name,
   *   as Distributed storage on local server knows it.
   *
+  * 如果主表是分布式表(至少包含2个分片), 且IN或JOIN子查询中不包含GLOBAL, 且子查询中的表也是分布式表且本地server上存在物理表,
+  * 则根据distributed_product_mode的配置, 或抛出异常, 或给子查询加上GLOBAL, 或将子查询中的库名表名替换成分布式的库名表名
+  *
   * Do not recursively preprocess subqueries, as it will be done by calling code.
   */
 

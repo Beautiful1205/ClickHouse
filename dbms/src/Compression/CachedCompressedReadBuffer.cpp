@@ -30,8 +30,8 @@ void CachedCompressedReadBuffer::initInput()
 
 bool CachedCompressedReadBuffer::nextImpl()
 {
-
     /// Let's check for the presence of a decompressed block in the cache, grab the ownership of this block, if it exists.
+    /// 检查缓存中是否存在解压缩块, 如果存在, 获取该块的所有权
     UInt128 key = cache->hash(path, file_pos);
     owned_cell = cache->get(key);
 

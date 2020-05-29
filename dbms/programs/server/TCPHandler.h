@@ -30,8 +30,8 @@ namespace DB {
         /// Identifier of the query.
         String query_id;
 
-        QueryProcessingStage::Enum stage = QueryProcessingStage::Complete;
-        Protocol::Compression compression = Protocol::Compression::Disable;
+        QueryProcessingStage::Enum stage = QueryProcessingStage::Complete; //默认是Complete
+        Protocol::Compression compression = Protocol::Compression::Disable;//默认不使用压缩
 
         /// From where to read data for INSERT.
         std::shared_ptr<ReadBuffer> maybe_compressed_in;

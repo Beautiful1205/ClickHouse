@@ -19,7 +19,7 @@ namespace DB {
   * Unlike std::istream, it provides access to the internal buffer,
   *  and also allows you to manually manage the position inside the buffer.
   *
-  * Note! `char *`, not `const char *` is used
+  * Note! `char *`, not `const char *` is used    ？？C++中char* 和const char*的区别？？const char * 则指针指向的内容不可变, 那么就不能再写buffer了
   *  (so that you can take out the common code into BufferBase, and also so that you can fill the buffer in with new data).
   * This causes inconveniences - for example, when using ReadBuffer to read from a chunk of memory const char *,
   *  you have to use const_cast.
@@ -68,13 +68,18 @@ namespace DB {
 
 
         /** Unlike std::istream, it returns true if all data was read
-          *  (and not in case there was an attempt to read after the end).
+          *  (and not in case there was an attempt to read after the end). 如果所有的数据都已经读过了, 总是返回true (即使是在read结束后试图read, 也返回true)
+          *
+          *
           * If at the moment the position is at the end of the buffer, it calls the next() method.
           * That is, it has a side effect - if the buffer is over, then it updates it and set the position to the beginning.
+          * 如果已经读到了buffer的end处, 就会去调用next()方法. 这就有一个副作用: 已经读完buffer, 指针会移动到buffer的起始位置
           *
           * Try to read after the end should throw an exception.
           */
         bool ALWAYS_INLINE eof() {
+            // buffer已经读取完, 则pos = working_buffer.end(), 则hasPendingData() = false, !hasPendingData() = true. 接着会调用next()方法.
+            // buffer没有读取完, 则pos != working_buffer.end(), 则hasPendingData() = true, !hasPendingData() = false. 直接但会false
             return !hasPendingData() && !next();
         }
 
@@ -129,7 +134,7 @@ namespace DB {
 
             while (bytes_copied < n && !eof()) {
                 size_t bytes_to_copy = std::min(static_cast<size_t>(working_buffer.end() - pos), n - bytes_copied);
-                ::memcpy(to + bytes_copied, pos, bytes_to_copy);//内存拷贝函数memcpy()
+                ::memcpy(to + bytes_copied, pos, bytes_to_copy);//内存拷贝函数memcpy(dest, src, size)
                 pos += bytes_to_copy;
                 bytes_copied += bytes_to_copy;
             }
@@ -154,6 +159,7 @@ namespace DB {
           * By default - the same as read.
           * Don't use for small reads.
           */
+        //将n个字节数据追加到to的后面
         virtual size_t readBig(char *to, size_t n) {
             return read(to, n);
         }

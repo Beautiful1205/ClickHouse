@@ -472,11 +472,11 @@ namespace DB {
         if (empty())
             throw Exception("Logical error: Join was not initialized", ErrorCodes::LOGICAL_ERROR);
 
-        size_t keys_size = key_names_right.size();
+        size_t keys_size = key_names_right.size();//key_names_right: JOIN中的右表的键的names
         ColumnRawPtrs key_columns(keys_size);
 
         /// Rare case, when keys are constant. To avoid code bloat, simply materialize them.
-        Columns materialized_columns;
+        Columns materialized_columns; //当keys是常量的时候, 为避免数据膨胀, 物化这些keys
         materialized_columns.reserve(keys_size);
 
         /// Memoize key columns to work.
@@ -505,7 +505,7 @@ namespace DB {
             stored_block->safeGetByPosition(i).column = stored_block->safeGetByPosition(
                     i).column->convertToFullColumnIfConst();
 
-        /// In case of LEFT and FULL joins, if use_nulls, convert joined columns to Nullable.
+        /// In case of LEFT and FULL joins, if use_nulls, convert joined columns to Nullable. LEFT JOIN和FULL JOIN情况下, use_nulls=true, 用空值替换未联接的行
         if (use_nulls && isLeftOrFull(kind)) {
             for (size_t i = isFull(kind) ? keys_size : 0; i < size; ++i) {
                 convertColumnToNullable(stored_block->getByPosition(i));
@@ -514,8 +514,7 @@ namespace DB {
 
         if (kind != ASTTableJoin::Kind::Cross) {
             dispatch([&](auto, auto strictness_, auto &map) {
-                insertFromBlockImpl<strictness_>(*this, type, map, rows, key_columns, key_sizes, stored_block, null_map,
-                                                 pool);
+                insertFromBlockImpl<strictness_>(*this, type, map, rows, key_columns, key_sizes, stored_block, null_map, pool);
             });
         }
 
@@ -1304,8 +1303,7 @@ namespace DB {
     BlockInputStreamPtr Join::createStreamWithNonJoinedRows(const Block &left_sample_block, const Names &key_names_left,
                                                             const NamesAndTypesList &columns_added_by_join,
                                                             UInt64 max_block_size) const {
-        return std::make_shared<NonJoinedBlockInputStream>(*this, left_sample_block, key_names_left,
-                                                           columns_added_by_join, max_block_size);
+        return std::make_shared<NonJoinedBlockInputStream>(*this, left_sample_block, key_names_left, columns_added_by_join, max_block_size);
     }
 
 

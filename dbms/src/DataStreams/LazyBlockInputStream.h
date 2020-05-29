@@ -10,6 +10,9 @@ namespace DB
   * This is needed, for example, to read from a table that will be populated
   *  after creation of LazyBlockInputStream object, but before the first `read` call.
   */
+/** 在第一次调用read()方法时, 初始化另一个source并使用.
+  * 例如, 在创建LazyBlockInputStream之后, 但在第一次调用read()方法之前, 需要从另一个临时表中读取数据
+  */
 class LazyBlockInputStream : public IBlockInputStream
 {
 public:

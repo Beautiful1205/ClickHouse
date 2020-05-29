@@ -201,12 +201,12 @@ namespace DB {
         Tokens tokens(pos, end, max_query_size);
         TokenIterator token_iterator(tokens);
 
-        if (token_iterator->isEnd() || token_iterator->type == TokenType::Semicolon) {
+        if (token_iterator->isEnd() || token_iterator->type == TokenType::Semicolon) {//分号 Semicolon
             out_error_message = "Empty query";
             return nullptr;
         }
 
-        Expected expected;//这个结构中保存的应该是所有可能出现的关键字或类似这样的信息
+        Expected expected;
 
         ASTPtr res;
         //语法解析生成AST的关键步骤,解析成功parse_res=true,解析失败parse_res=false
