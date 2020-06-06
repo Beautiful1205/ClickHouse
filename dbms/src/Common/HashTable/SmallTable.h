@@ -42,10 +42,11 @@ protected:
     using cell_type = Cell;
 
     size_t m_size = 0;        /// Amount of elements.
-    Cell buf[capacity];       /// A piece of memory for all elements.
+    Cell buf[capacity];       /// A piece of memory for all elements. buf是一个Cell数组, 数组大小为capacity(capacity = 32).
 
 
     /// Find a cell with the same key or an empty cell, starting from the specified position and then by the collision resolution chain.
+    /// 从指定位置开始, 找到一个Cell, 该Cell可能为空, 也可能包含一些keys. (如果不为空)遍历这些keys, 找到和x相同的key.
     const Cell * ALWAYS_INLINE findCell(const Key & x) const
     {
         const Cell * it = buf;
@@ -266,6 +267,7 @@ public:
     }
 
 
+    //从另一个hash table中copy一个cell
     /// Copy the cell from another hash table. It is assumed that there was no such key in the table yet.
     void ALWAYS_INLINE insertUnique(const Cell * cell)
     {

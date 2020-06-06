@@ -76,8 +76,12 @@ void set(T & x) { x = 0; }
 
 }
 
-
-/** Compile-time interface for cell of the hash table.                     hash table的编译时接口
+/** hash table中cell的编译时接口
+  * 不同的cell类型用于实现不同的哈希表
+  * cell中必须包含键
+  * cell中还可以包含一个值和任意的附加数据（例如：存储的哈希值；ClearableHashMap的版本号）
+ */
+/** Compile-time interface for cell of the hash table.
   * Different cell types are used to implement different hash tables.
   * The cell must contain a key.
   * It can also contain a value and arbitrary additional data
@@ -135,11 +139,13 @@ struct HashTableCell
     /// Set the mapped value, if any (for HashMap), to the corresponding `value`.
     void setMapped(const value_type & /*value*/) {}
 
-    /// Serialization, in binary and text form.    序列化，二进制和文本形式
+    /// Serialization, in binary and text form.
+    // 序列化, 二进制和文本形式
     void write(DB::WriteBuffer & wb) const         { DB::writeBinary(key, wb); }
     void writeText(DB::WriteBuffer & wb) const     { DB::writeDoubleQuoted(key, wb); }
 
-    /// Deserialization, in binary and text form.  反序列化，二进制和文本形式
+    /// Deserialization, in binary and text form.
+    // 反序列化, 二进制和文本形式
     void read(DB::ReadBuffer & rb)        { DB::readBinary(key, rb); }
     void readText(DB::ReadBuffer & rb)    { DB::readDoubleQuoted(key, rb); }
 };
